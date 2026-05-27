@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Websites\\\\ShaadiOps\\\\src\" -Recurse -File -Name)",
+      "Bash(Sort-Object)"
+    ]
+  }
+}

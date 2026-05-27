@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      // Bootstrap with provided email or check user profile role
+      return isSignedIn() && (
+        request.auth.token.email == 'ankitj882@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserRole() == 'Admin')
+      );
+    }
+
+    function isCoordinator() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        (getUserRole() == 'Coordinator' || getUserRole() == 'Admin')
+      );
+    }
+
+    // 2. Entity Validators
+    function isValidGuest(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'headcount', 'arrivalMode', 'departureMode', 'familySide', 'status', 'arrivalDateTime', 'departureDateTime']) &&
+             data.keys().size() <= 24 &&
+             data.id is string && isValidId(data.id) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 20 &&
+             data.headcount is number && data.headcount >= 1 &&
+             data.arrivalMode in ['Car', 'Train', 'Flight', 'Bus'] &&
+             data.departureMode in ['Car', 'Train', 'Flight', 'Bus'] &&
+             data.familySide in ['Bride Side', 'Groom Side'] &&
+             data.status in ['Picked Up', 'Checked In', 'In Transit', 'Pending'] &&
+             data.arrivalDateTime is string &&
+             data.departureDateTime is string &&
+             (data.get('memberNames', []) is list) &&
+             (data.get('memberNames', []).size() == 0 || data.get('memberNames', [])[0] is string) &&
+             (data.get('travelDetails', '') is string) &&
+             (data.get('departureDetails', '') is string) &&
+             (data.get('arrivalTrainName', '') is string) &&
+             (data.get('arrivalTrainNumber', '') is string) &&
+             (data.get('arrivalCoach', '') is string) &&
+             (data.get('arrivalSeat', '') is string) &&
+             (data.get('departureTrainName', '') is string) &&
+             (data.get('departureTrainNumber', '') is string) &&
+             (data.get('departureCoach', '') is string) &&
+             (data.get('departureSeat', '') is string) &&
+             (data.get('arrivalFlightNumber', '') is string) &&
+             (data.get('departureFlightNumber', '') is string);
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.keys().size() <= 5 &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.role in ['Admin', 'Coordinator', 'Viewer'];
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['id', 'number', 'floor', 'category', 'capacity', 'status', 'hotel']) &&
+             data.keys().size() <= 8 &&
+             data.id is string && isValidId(data.id) &&
+             data.number is string && data.number.size() <= 20 &&
+             data.floor is string && data.floor.size() <= 50 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.capacity is number && data.capacity >= 1 &&
+             data.status in ['Occupied', 'Empty', 'Cleaning', 'Maintenance'] &&
+             data.hotel is string && data.hotel.size() <= 100;
+    }
+
+    function isValidEventConfig(data) {
+      return data.keys().hasAll(['id', 'brideName', 'groomName', 'hashtag']) &&
+             data.keys().size() <= 6 &&
+             data.id is string &&
+             data.brideName is string && data.brideName.size() <= 100 &&
+             data.groomName is string && data.groomName.size() <= 100 &&
+             data.hashtag is string && data.hashtag.size() <= 100;
+    }
+
+    function isValidItinerary(data) {
+      return data.keys().hasAll(['id', 'title', 'startTime', 'venue']) &&
+             data.keys().size() <= 7 &&
+             data.id is string && isValidId(data.id) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.startTime is string &&
+             data.venue is string && data.venue.size() <= 200 &&
+             (data.get('endTime', '') is string) &&
+             (data.get('description', '') is string) &&
+             (data.get('category', '') is string);
+    }
+
+    // 4. Collection Matches
+    match /config/event {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidUserProfile(incoming());
+      // Admin can update any user's role (only the role field)
+      allow update: if isAdmin() &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['role']) &&
+                    incoming().role in ['Admin', 'Coordinator', 'Viewer'];
+      allow delete: if isAdmin();
+    }
+
+    match /guests/{guestId} {
+      allow read: if isSignedIn();
+      allow create: if isCoordinator() && isValidGuest(incoming());
+      allow update: if isCoordinator() && 
+                    isValidGuest(incoming()) &&
+                    incoming().id == existing().id;
+      allow delete: if isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isSignedIn();
+      allow write: if isCoordinator();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isCoordinator() && isValidRoom(incoming());
+      allow update: if isCoordinator() && 
+                    isValidRoom(incoming()) &&
+                    incoming().id == existing().id;
+      allow delete: if isAdmin();
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if isSignedIn();
+      allow write: if isCoordinator();
+    }
+
+    match /itinerary/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if isCoordinator() && isValidItinerary(incoming());
+    }
+  }
+}
