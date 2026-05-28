@@ -463,8 +463,8 @@ export default function GuestList() {
                             <InviteStatusBadge status={invStatus} />
                           </div>
 
-                          {/* Travel indicator */}
-                          <div className="shrink-0 w-20 text-center">
+                          {/* Travel indicator — hidden on mobile to keep name readable */}
+                          <div className="shrink-0 w-20 text-center hidden sm:block">
                             {guest.arrivalDateTime ? (
                               <span className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-600">
                                 <CheckCircle2 size={11} />Travel
@@ -487,7 +487,7 @@ export default function GuestList() {
                           </div>
 
                           {/* Delete */}
-                          {!isReadOnly && <div className="shrink-0 w-20 flex items-center justify-end">
+                          {!isReadOnly && <div className="shrink-0 sm:w-20 flex items-center justify-end">
                             {confirmDeleteId === guest.id ? (
                               <div className="flex items-center gap-1.5">
                                 <button
