@@ -156,6 +156,7 @@ export default function HotelTracker() {
           roomId: deleteField(),
           roomNumber: deleteField(),
           hotelName: deleteField(),
+          status: GuestStatus.PENDING,   // no longer checked in if room is deleted
         });
       }
       batch.delete(doc(db, 'rooms', room.id));
@@ -173,6 +174,7 @@ export default function HotelTracker() {
         roomId: deleteField(),
         roomNumber: deleteField(),
         hotelName: deleteField(),
+        status: GuestStatus.PENDING,   // no longer checked in if removed from room
       });
       const remainingGuests = (guestsByRoom.get(room.id) || []).filter(g => g.id !== guest.id);
       if (remainingGuests.length === 0) {

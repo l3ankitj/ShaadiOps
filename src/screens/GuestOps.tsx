@@ -8,7 +8,7 @@ import {
   Search, Calendar, UserPlus, ChevronRight, X,
   Train, Car, PlaneLanding, Plane, AlertTriangle,
   CheckCircle2, Bus, ChevronDown, Users2, StickyNote,
-  LogOut, Trash2,
+  LogOut, Trash2, Building2,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
@@ -966,6 +966,19 @@ export default function GuestOps() {
                           </p>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Assigned Room Info */}
+                {selectedGuest.roomNumber && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
+                    <Building2 size={16} className="text-primary shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-outline uppercase tracking-widest">Assigned Room</p>
+                      <p className="text-sm font-bold text-primary">
+                        Room {selectedGuest.roomNumber}{selectedGuest.hotelName ? ` · ${selectedGuest.hotelName}` : ''}
+                      </p>
                     </div>
                   </div>
                 )}
