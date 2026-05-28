@@ -596,11 +596,11 @@ export default function GuestOps() {
                       <button
                         type="button"
                         onClick={() => setFormIsPrimary(!formIsPrimary)}
-                        className={cn('w-12 h-6 rounded-full transition-colors shrink-0 relative',
+                        className={cn('w-12 h-6 rounded-full transition-colors shrink-0 relative overflow-hidden',
                           formIsPrimary ? 'bg-secondary' : 'bg-outline-variant')}
                       >
-                        <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
-                          formIsPrimary ? 'translate-x-6' : 'translate-x-0.5')} />
+                        <span className={cn('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                          formIsPrimary ? 'translate-x-6' : 'translate-x-0')} />
                       </button>
                       <div>
                         <p className="text-sm font-bold text-primary">Primary Contact for this group</p>
