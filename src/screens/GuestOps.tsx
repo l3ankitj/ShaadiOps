@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Search, Calendar, UserPlus, ChevronRight, X,
   Train, Car, PlaneLanding, Plane, AlertTriangle,
-  CheckCircle2, Bus, ChevronDown, Users2, StickyNote,
-  LogOut, Trash2, Building2,
+  CheckCircle2, Bus, ChevronDown, ChevronUp, ArrowUpDown,
+  Users2, StickyNote, LogOut, Trash2, Building2,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
@@ -71,6 +71,15 @@ function ModeIcon({ mode, size = 14 }: { mode: ArrivalMode; size?: number }) {
   return <Car size={size} className="text-secondary" />;
 }
 
+type SortCol = 'name' | 'familySide' | 'inviteStatus' | 'arrival' | 'status';
+
+function SortIcon({ col, active, dir }: { col: SortCol; active: SortCol; dir: 'asc' | 'desc' }) {
+  if (col !== active) return <ArrowUpDown size={10} className="opacity-25 shrink-0" />;
+  return dir === 'asc'
+    ? <ChevronUp size={11} className="text-primary shrink-0" />
+    : <ChevronDown size={11} className="text-primary shrink-0" />;
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function GuestOps() {
@@ -84,6 +93,8 @@ export default function GuestOps() {
   const [filterArrivingToday, setFilterArrivingToday] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [sortCol, setSortCol] = useState<SortCol>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Form state
   const [formInviteStatus, setFormInviteStatus] = useState<InviteStatus>(InviteStatus.PENDING);
@@ -209,6 +220,11 @@ export default function GuestOps() {
     }
   };
 
+  const handleSort = (col: SortCol) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  };
+
   const handleAddGuest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -293,6 +309,18 @@ export default function GuestOps() {
       (guest.groupName || '').toLowerCase().includes(s);
   });
 
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case 'name':         cmp = a.name.localeCompare(b.name); break;
+      case 'familySide':   cmp = a.familySide.localeCompare(b.familySide); break;
+      case 'inviteStatus': cmp = (a.inviteStatus ?? InviteStatus.PENDING).localeCompare(b.inviteStatus ?? InviteStatus.PENDING); break;
+      case 'arrival':      cmp = (a.arrivalDateTime ?? '').localeCompare(b.arrivalDateTime ?? ''); break;
+      case 'status':       cmp = a.status.localeCompare(b.status); break;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   return (
     <div className="space-y-8 relative">
       {/* Header */}
@@ -368,8 +396,13 @@ export default function GuestOps() {
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex-1">
                 {selectedIds.size > 0 ? `${selectedIds.size} of ${filtered.length} selected` : `${filtered.length} guests`}
               </span>
+              {selectedIds.size > 0 && (
+                <button onClick={() => setSelectedIds(new Set())} className="text-[10px] font-bold text-secondary underline underline-offset-2">
+                  Clear
+                </button>
+              )}
             </div>
-            {filtered.map(guest => {
+            {sorted.map(guest => {
               const isSelected = selectedIds.has(guest.id);
               return (
                 <div
@@ -435,12 +468,22 @@ export default function GuestOps() {
                       onChange={toggleSelectAll} />
                   </th>
                 )}
-                <th className="px-6 py-4">Guest</th>
-                <th className="px-6 py-4">Family Side</th>
-                <th className="px-6 py-4">Invite Status</th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:bg-surface-container-low transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1.5">Guest <SortIcon col="name" active={sortCol} dir={sortDir} /></div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:bg-surface-container-low transition-colors" onClick={() => handleSort('familySide')}>
+                  <div className="flex items-center gap-1.5">Family Side <SortIcon col="familySide" active={sortCol} dir={sortDir} /></div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:bg-surface-container-low transition-colors" onClick={() => handleSort('inviteStatus')}>
+                  <div className="flex items-center gap-1.5">Invite Status <SortIcon col="inviteStatus" active={sortCol} dir={sortDir} /></div>
+                </th>
                 <th className="px-6 py-4">Travel?</th>
-                <th className="px-6 py-4">Arrival</th>
-                <th className="px-6 py-4">Hotel Status</th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:bg-surface-container-low transition-colors" onClick={() => handleSort('arrival')}>
+                  <div className="flex items-center gap-1.5">Arrival <SortIcon col="arrival" active={sortCol} dir={sortDir} /></div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:bg-surface-container-low transition-colors" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1.5">Hotel Status <SortIcon col="status" active={sortCol} dir={sortDir} /></div>
+                </th>
                 <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
@@ -454,7 +497,7 @@ export default function GuestOps() {
                   {guests.length === 0 ? 'No guests registered. Start by adding a guest.' : 'No guests match the search.'}
                 </td></tr>
               ) : (
-                filtered.map(guest => {
+                sorted.map(guest => {
                   const invStatus = guest.inviteStatus ?? InviteStatus.PENDING;
                   return (
                     <tr
