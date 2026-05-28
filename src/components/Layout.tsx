@@ -192,26 +192,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant flex justify-around items-center h-14 z-40 px-4">
-        <NavLink to="/dashboard" className={({ isActive }) => cn('flex flex-col items-center gap-0.5', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
-          <LayoutDashboard size={20} />
-          <span className="text-[9px] font-bold uppercase">Home</span>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant flex justify-around items-center h-14 z-40">
+        <NavLink to="/dashboard" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <LayoutDashboard size={18} />
+          <span className="text-[8px] font-bold uppercase">Home</span>
         </NavLink>
-        <NavLink to="/guest-ops" className={({ isActive }) => cn('flex flex-col items-center gap-0.5', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
-          <Users size={20} />
-          <span className="text-[9px] font-bold uppercase">Guests</span>
+        <NavLink to="/guest-list" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <ClipboardList size={18} />
+          <span className="text-[8px] font-bold uppercase">List</span>
         </NavLink>
-        <NavLink to="/hotel-tracker" className={({ isActive }) => cn('flex flex-col items-center gap-0.5', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
-          <Hotel size={20} />
-          <span className="text-[9px] font-bold uppercase">Hotel</span>
+        <NavLink to="/guest-ops" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <Users size={18} />
+          <span className="text-[8px] font-bold uppercase">Guests</span>
         </NavLink>
-        <NavLink to="/transport-desk" className={({ isActive }) => cn('flex flex-col items-center gap-0.5', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
-          <Car size={20} />
-          <span className="text-[9px] font-bold uppercase">Transport</span>
+        <NavLink to="/hotel-tracker" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <Hotel size={18} />
+          <span className="text-[8px] font-bold uppercase">Hotel</span>
         </NavLink>
-        <NavLink to="/vendor-sos" className={({ isActive }) => cn('flex flex-col items-center gap-0.5', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
-          <PhoneCall size={20} />
-          <span className="text-[9px] font-bold uppercase">Contacts</span>
+        <NavLink to="/transport-desk" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <Car size={18} />
+          <span className="text-[8px] font-bold uppercase">Transport</span>
+        </NavLink>
+        <NavLink to="/vendor-sos" className={({ isActive }) => cn('flex flex-col items-center gap-0.5 flex-1', isActive ? 'text-primary' : 'text-on-surface-variant opacity-60')}>
+          <PhoneCall size={18} />
+          <span className="text-[8px] font-bold uppercase">Contacts</span>
         </NavLink>
       </nav>
     </div>
