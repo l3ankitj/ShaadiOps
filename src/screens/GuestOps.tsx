@@ -98,6 +98,15 @@ export default function GuestOps() {
   const [sortCol, setSortCol] = useState<SortCol>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+  // Drawer inline-edit state
+  const [drawerName, setDrawerName]           = useState('');
+  const [drawerPhone, setDrawerPhone]         = useState('');
+  const [drawerNotes, setDrawerNotes]         = useState('');
+  const [drawerGroupName, setDrawerGroupName] = useState('');
+  const [drawerSide, setDrawerSide]           = useState<FamilySide>(FamilySide.BRIDE);
+  const [drawerPhoneErr, setDrawerPhoneErr]   = useState<string | null>(null);
+  const [drawerSaving, setDrawerSaving]       = useState(false);
+
   // Form state
   const [formInviteStatus, setFormInviteStatus] = useState<InviteStatus>(InviteStatus.PENDING);
   const [formIsPrimary, setFormIsPrimary] = useState(true);
@@ -113,6 +122,17 @@ export default function GuestOps() {
   const [departureDateStr, setDepartureDateStr] = useState('');
   const [departureTimeStr, setDepartureTimeStr] = useState('');
   const [formPhoneError, setFormPhoneError] = useState<string | null>(null);
+
+  // Seed drawer fields whenever a different guest is opened
+  useEffect(() => {
+    if (!selectedGuest) return;
+    setDrawerName(selectedGuest.name);
+    setDrawerPhone(selectedGuest.phone ?? '');
+    setDrawerNotes(selectedGuest.notes ?? '');
+    setDrawerGroupName(selectedGuest.groupName ?? '');
+    setDrawerSide(selectedGuest.familySide);
+    setDrawerPhoneErr(null);
+  }, [selectedGuest?.id]);
 
   useEffect(() => {
     const fallback = setTimeout(() => setLoading(false), 5000);
@@ -205,6 +225,34 @@ export default function GuestOps() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handleSaveGuest = async () => {
+    if (!selectedGuest) return;
+    const trimmedName = drawerName.trim();
+    if (!trimmedName) return;
+    const pErr = validatePhone(drawerPhone);
+    if (pErr) { setDrawerPhoneErr(pErr); return; }
+    setDrawerPhoneErr(null);
+    setDrawerSaving(true);
+    try {
+      const updates: Record<string, unknown> = {
+        name: trimmedName,
+        familySide: drawerSide,
+        phone: drawerPhone.trim() || deleteField(),
+        notes: drawerNotes.trim() || deleteField(),
+        groupName: drawerGroupName.trim() || deleteField(),
+      };
+      if (!drawerGroupName.trim() && selectedGuest.groupName) {
+        updates.isPrimaryContact = deleteField();
+      }
+      await updateDoc(doc(db, 'guests', selectedGuest.id), updates);
+      setSelectedGuest(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `guests/${selectedGuest.id}`);
+    } finally {
+      setDrawerSaving(false);
+    }
   };
 
   const handleDeleteGuest = async (guestId: string) => {
@@ -914,16 +962,10 @@ export default function GuestOps() {
             <div className="flex flex-col h-full">
               <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-primary text-on-primary">
                 <div>
-                  <h3 className="text-xl font-display font-bold">{selectedGuest.name}</h3>
-                  {selectedGuest.groupName && (
+                  <h3 className="text-xl font-display font-bold">{drawerName || selectedGuest.name}</h3>
+                  {(drawerGroupName || selectedGuest.groupName) && (
                     <p className="text-[10px] font-bold opacity-70 flex items-center gap-1 mt-0.5">
-                      <Users2 size={10} />
-                      {!isReadOnly ? (
-                        <button onClick={() => setEditingGroup(selectedGuest.groupName!)}
-                          className="hover:underline underline-offset-2 hover:opacity-100 transition-opacity">
-                          {selectedGuest.groupName}
-                        </button>
-                      ) : selectedGuest.groupName}
+                      <Users2 size={10} />{drawerGroupName || selectedGuest.groupName}
                       {selectedGuest.isPrimaryContact && ' · Primary Contact'}
                     </p>
                   )}
@@ -934,39 +976,79 @@ export default function GuestOps() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                {/* Identity */}
+                {/* Identity — editable when not read-only */}
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-bold text-outline uppercase tracking-[0.15em]">Identity</h4>
-                  <div className="bg-surface-container-low p-4 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant={selectedGuest.familySide === FamilySide.BRIDE ? 'primary' : 'secondary'}>
-                        {selectedGuest.familySide}
-                      </Badge>
-                      <InviteStatusBadge status={selectedGuest.inviteStatus ?? InviteStatus.PENDING} />
+
+                  {isReadOnly ? (
+                    /* Read-only view */
+                    <div className="bg-surface-container-low p-4 rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge variant={selectedGuest.familySide === FamilySide.BRIDE ? 'primary' : 'secondary'}>{selectedGuest.familySide}</Badge>
+                        <InviteStatusBadge status={selectedGuest.inviteStatus ?? InviteStatus.PENDING} />
+                      </div>
+                      {selectedGuest.phone && <p className="text-sm text-on-surface-variant">📞 {selectedGuest.phone}</p>}
+                      {selectedGuest.dietary && <p className="text-sm text-on-surface-variant">🍽 {selectedGuest.dietary}</p>}
+                      {selectedGuest.notes && <p className="text-xs text-on-surface-variant">{selectedGuest.notes}</p>}
+                      {selectedGuest.groupName && <p className="text-xs font-bold text-secondary">{selectedGuest.groupName}</p>}
                     </div>
-                    {selectedGuest.phone && <p className="text-sm text-on-surface-variant">📞 {selectedGuest.phone}</p>}
-                    {selectedGuest.dietary && <p className="text-sm text-on-surface-variant">🍽 {selectedGuest.dietary}</p>}
-                    {selectedGuest.notes && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <p className="text-[9px] font-bold text-outline uppercase mb-1 flex items-center gap-1"><StickyNote size={9} />Notes</p>
-                        <p className="text-xs text-on-surface-variant">{selectedGuest.notes}</p>
+                  ) : (
+                    /* Editable fields */
+                    <div className="space-y-3">
+                      {/* Name */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Name *</label>
+                        <input value={drawerName} onChange={e => setDrawerName(e.target.value)}
+                          className="w-full px-3 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none font-bold text-primary" />
                       </div>
-                    )}
-                    {selectedGuest.groupName && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <p className="text-[9px] font-bold text-outline uppercase mb-1">Group</p>
-                        {!isReadOnly ? (
-                          <button onClick={() => setEditingGroup(selectedGuest.groupName!)}
-                            className="text-xs font-bold text-secondary hover:underline underline-offset-2 flex items-center gap-1">
-                            <Users2 size={11} />{selectedGuest.groupName}
-                            <span className="text-[8px] text-outline normal-case font-normal">(edit group)</span>
-                          </button>
-                        ) : (
-                          <p className="text-xs font-bold text-secondary">{selectedGuest.groupName}</p>
-                        )}
+                      {/* Phone */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Phone</label>
+                        <input value={drawerPhone} onChange={e => { setDrawerPhone(e.target.value); setDrawerPhoneErr(null); }} type="tel"
+                          placeholder="+91 XXXXX XXXXX"
+                          className={cn('w-full px-3 py-2.5 border rounded-xl bg-surface-container-low text-sm focus:bg-white transition-all outline-none',
+                            drawerPhoneErr ? 'border-red-400 focus:border-red-400' : 'border-outline-variant focus:border-secondary')} />
+                        {drawerPhoneErr && <p className="text-[10px] font-bold text-red-600">{drawerPhoneErr}</p>}
                       </div>
-                    )}
-                  </div>
+                      {/* Family Side */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Side</label>
+                        <div className="flex gap-2">
+                          {[FamilySide.BRIDE, FamilySide.GROOM].map(side => (
+                            <button key={side} type="button" onClick={() => setDrawerSide(side)}
+                              className={cn('flex-1 py-2 rounded-xl text-xs font-bold border transition-all',
+                                drawerSide === side
+                                  ? side === FamilySide.BRIDE ? 'bg-pink-500 text-white border-pink-500' : 'bg-secondary text-on-secondary border-secondary'
+                                  : 'bg-surface-container-low border-outline-variant text-on-surface-variant')}>
+                              {side === FamilySide.BRIDE ? '💗 Bride' : '💙 Groom'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Group */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Group</label>
+                        <div className="flex gap-2">
+                          <input value={drawerGroupName} onChange={e => setDrawerGroupName(e.target.value)}
+                            placeholder="Group / Family name (leave blank for solo)"
+                            className="flex-1 px-3 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none" />
+                          {drawerGroupName.trim() && (
+                            <button type="button" onClick={() => setEditingGroup(drawerGroupName.trim())}
+                              className="px-3 py-2 border border-outline-variant rounded-xl text-[10px] font-bold text-secondary hover:border-secondary transition-all shrink-0">
+                              Edit Group
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Notes */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Notes</label>
+                        <input value={drawerNotes} onChange={e => setDrawerNotes(e.target.value)}
+                          placeholder="Dietary, special needs, etc."
+                          className="w-full px-3 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Change Invite Status */}
@@ -1119,13 +1201,23 @@ export default function GuestOps() {
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <Button variant="secondary" className="flex-1 h-10" onClick={() => setSelectedGuest(null)}>Close</Button>
-                    {!isReadOnly && <button
-                      onClick={() => setConfirmDeleteId(selectedGuest.id)}
-                      className="px-4 py-2 border border-red-200 text-red-500 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1.5"
-                    >
-                      <Trash2 size={13} /> Delete
-                    </button>}
+                    <Button variant="ghost" className="h-10 px-4" onClick={() => setSelectedGuest(null)}>Cancel</Button>
+                    {!isReadOnly && (
+                      <>
+                        <Button variant="primary" className="flex-1 h-10" onClick={handleSaveGuest} disabled={drawerSaving}>
+                          {drawerSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                        <button
+                          onClick={() => setConfirmDeleteId(selectedGuest.id)}
+                          className="px-4 py-2 border border-red-200 text-red-500 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1.5"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
+                    {isReadOnly && (
+                      <Button variant="secondary" className="flex-1 h-10" onClick={() => setSelectedGuest(null)}>Close</Button>
+                    )}
                   </div>
                 )}
               </div>
