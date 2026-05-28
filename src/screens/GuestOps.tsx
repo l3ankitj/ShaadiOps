@@ -11,6 +11,7 @@ import {
   LogOut, Trash2,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
+import AddGroupModal from '../components/AddGroupModal';
 import { cn } from '../lib/utils';
 import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../types';
 import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, deleteField, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -75,6 +76,7 @@ export default function GuestOps() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isAddingGuest, setIsAddingGuest] = useState(false);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterArrivingToday, setFilterArrivingToday] = useState(false);
@@ -281,10 +283,16 @@ export default function GuestOps() {
           </div>
           <div className="flex flex-wrap gap-2">
             {!isReadOnly && (
-              <Button variant="primary" className="rounded-full flex items-center gap-2 h-12 px-6 shadow-lg shadow-primary/20" onClick={() => setIsAddingGuest(true)}>
-                <UserPlus size={18} />
-                <span className="text-xs font-bold uppercase tracking-wider">New Guest</span>
-              </Button>
+              <>
+                <Button variant="primary" className="rounded-full flex items-center gap-2 h-12 px-6 shadow-lg shadow-primary/20" onClick={() => setIsAddingGuest(true)}>
+                  <UserPlus size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wider">New Guest</span>
+                </Button>
+                <Button variant="secondary" className="rounded-full flex items-center gap-2 h-12 px-6 shadow-lg shadow-secondary/20" onClick={() => setIsAddingGroup(true)}>
+                  <Users2 size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wider">Add Group</span>
+                </Button>
+              </>
             )}
             <Button
               variant={filterArrivingToday ? 'secondary' : 'ghost'}
@@ -509,6 +517,9 @@ export default function GuestOps() {
           </table>
         </div>
       </Card>
+
+      {/* Add Group Modal */}
+      {isAddingGroup && <AddGroupModal onClose={() => setIsAddingGroup(false)} />}
 
       {/* Add Guest Modal */}
       {isAddingGuest && (

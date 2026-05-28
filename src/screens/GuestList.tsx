@@ -16,6 +16,7 @@ import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../ty
 import { cn } from '../lib/utils';
 import { downloadGuestTemplate, parseGuestExcel, ParsedRow } from '../lib/guestExcel';
 import { useIsReadOnly } from '../contexts/AccessContext';
+import AddGroupModal from '../components/AddGroupModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,7 @@ export default function GuestList() {
   const initialCollapseSet = useRef(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -329,10 +331,16 @@ export default function GuestList() {
             <Download size={15} /><span className="hidden sm:inline">Excel Template</span>
           </button>
           {!isReadOnly && (
-            <button onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-secondary text-on-secondary hover:opacity-90 transition-all shadow-md font-bold text-xs uppercase tracking-widest">
-              <Upload size={15} /><span className="hidden sm:inline">Import Excel</span>
-            </button>
+            <>
+              <button onClick={() => setIsAddingGroup(true)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-primary text-on-primary hover:opacity-90 transition-all shadow-md font-bold text-xs uppercase tracking-widest">
+                <Users2 size={15} /><span className="hidden sm:inline">Add Group</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-secondary text-on-secondary hover:opacity-90 transition-all shadow-md font-bold text-xs uppercase tracking-widest">
+                <Upload size={15} /><span className="hidden sm:inline">Import Excel</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -575,6 +583,9 @@ export default function GuestList() {
           {confirmedCount} confirmed · {totalPeople - confirmedCount} pending/declined
         </p>
       )}
+
+      {/* Add Group Modal */}
+      {isAddingGroup && <AddGroupModal onClose={() => setIsAddingGroup(false)} />}
 
       {/* Edit Guest Modal */}
       {editingGuest && (
