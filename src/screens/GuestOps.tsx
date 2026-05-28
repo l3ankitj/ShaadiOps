@@ -151,6 +151,8 @@ export default function GuestOps() {
   const handleUpdateStatus = async (guestId: string, newStatus: GuestStatus) => {
     try {
       const guest = guests.find(g => g.id === guestId);
+      // Clicking the already-active status toggles it back to Pending
+      if (guest?.status === newStatus) newStatus = GuestStatus.PENDING;
       if (newStatus === GuestStatus.CHECKED_OUT && guest?.roomId) {
         // Release the room if no other guests remain in it
         const roomId = guest.roomId;
