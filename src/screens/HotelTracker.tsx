@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Building2, PlusCircle, Lock, Wrench, X, Search, UserPlus, Layers, Users, Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, LogOut, Trash2, UserMinus } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import { cn } from '../lib/utils';
-import { Room, RoomStatus, Guest, GuestStatus } from '../types';
+import { Room, RoomStatus, Guest, GuestStatus, InviteStatus } from '../types';
 import { collection, onSnapshot, doc, setDoc, writeBatch, deleteField, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useIsReadOnly } from '../contexts/AccessContext';
@@ -86,6 +86,7 @@ export default function HotelTracker() {
       for (const guestId of selectedGuestIds) {
         batch.update(doc(db, 'guests', guestId), {
           status: GuestStatus.CHECKED_IN,
+          inviteStatus: InviteStatus.CONFIRMED,
           roomId: selectedRoom.id,
           roomNumber: selectedRoom.number,
           hotelName: selectedRoom.hotel,
