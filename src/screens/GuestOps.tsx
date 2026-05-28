@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
+import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 import { cn } from '../lib/utils';
 import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../types';
 import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, deleteField, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -97,6 +98,7 @@ export default function GuestOps() {
   const [arrivalTimeStr, setArrivalTimeStr] = useState('');
   const [departureDateStr, setDepartureDateStr] = useState('');
   const [departureTimeStr, setDepartureTimeStr] = useState('');
+  const [formPhoneError, setFormPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
     const fallback = setTimeout(() => setLoading(false), 5000);
@@ -125,6 +127,7 @@ export default function GuestOps() {
     setArrivalTimeStr('');
     setDepartureDateStr('');
     setDepartureTimeStr('');
+    setFormPhoneError(null);
   };
 
   const handleUpdateStatus = async (guestId: string, newStatus: GuestStatus) => {
@@ -202,6 +205,17 @@ export default function GuestOps() {
   const handleAddGuest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const phoneVal = formData.get('phone') as string;
+    const pErr = validatePhone(phoneVal);
+    if (pErr) { setFormPhoneError(pErr); return; }
+    if (showTravelSection) {
+      const adErr = validateDateStr(arrivalDateStr);
+      const atErr = arrivalDateStr ? validateTimeStr(arrivalTimeStr) : null;
+      const ddErr = validateDateStr(departureDateStr);
+      const dtErr = departureDateStr ? validateTimeStr(departureTimeStr) : null;
+      if (adErr || atErr || ddErr || dtErr) return; // errors shown inline via preview
+    }
+    setFormPhoneError(null);
     const id = `G${Date.now()}`;
     const groupName = formGroupName.trim();
 
@@ -556,7 +570,10 @@ export default function GuestOps() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-black text-primary uppercase tracking-[0.1em] ml-1">Phone Number</label>
-                      <input name="phone" className="w-full px-4 py-4 border border-outline-variant rounded-2xl bg-white text-base focus:border-secondary focus:ring-4 focus:ring-secondary/5 transition-all outline-none" placeholder="+91 XXXXX XXXXX (optional)" />
+                      <input name="phone" onChange={() => setFormPhoneError(null)}
+                        className={`w-full px-4 py-4 border rounded-2xl bg-white text-base focus:ring-4 transition-all outline-none ${formPhoneError ? 'border-red-400 focus:ring-red-100' : 'border-outline-variant focus:border-secondary focus:ring-secondary/5'}`}
+                        placeholder="+91 XXXXX XXXXX (optional)" />
+                      {formPhoneError && <p className="text-xs font-bold text-red-600 ml-1">{formPhoneError}</p>}
                     </div>
                   </div>
 
@@ -675,11 +692,11 @@ export default function GuestOps() {
                           <div className="space-y-2">
                             <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Date (DD.MM)</label>
                             <input type="text" value={arrivalDateStr} onChange={e => setArrivalDateStr(e.target.value)}
-                              className="w-full p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="e.g. 15.6" autoComplete="off" />
-                            {arrivalDateStr && (
-                              <p className="text-[10px] font-bold text-secondary flex items-center gap-1 ml-2">
-                                <CheckCircle2 size={10} />{formatDisplayDate(`${parseSmartDate(arrivalDateStr)}T12:00:00`)}
-                              </p>
+                              className={`w-full p-4 border rounded-2xl bg-surface-container-lowest text-sm outline-none font-bold ${validateDateStr(arrivalDateStr) && arrivalDateStr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`}
+                              placeholder="e.g. 15.6" autoComplete="off" />
+                            {arrivalDateStr && (validateDateStr(arrivalDateStr)
+                              ? <p className="text-[10px] font-bold text-red-600 ml-2">{validateDateStr(arrivalDateStr)}</p>
+                              : <p className="text-[10px] font-bold text-secondary flex items-center gap-1 ml-2"><CheckCircle2 size={10} />{formatDisplayDate(`${parseSmartDate(arrivalDateStr)}T12:00:00`)}</p>
                             )}
                           </div>
                           <div className="space-y-2">
@@ -734,11 +751,11 @@ export default function GuestOps() {
                           <div className="space-y-2">
                             <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Date (DD.MM)</label>
                             <input type="text" value={departureDateStr} onChange={e => setDepartureDateStr(e.target.value)}
-                              className="w-full p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="e.g. 18.6" autoComplete="off" />
-                            {departureDateStr && (
-                              <p className="text-[10px] font-bold text-secondary flex items-center gap-1 ml-2">
-                                <CheckCircle2 size={10} />{formatDisplayDate(`${parseSmartDate(departureDateStr)}T12:00:00`)}
-                              </p>
+                              className={`w-full p-4 border rounded-2xl bg-surface-container-lowest text-sm outline-none font-bold ${validateDateStr(departureDateStr) && departureDateStr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`}
+                              placeholder="e.g. 18.6" autoComplete="off" />
+                            {departureDateStr && (validateDateStr(departureDateStr)
+                              ? <p className="text-[10px] font-bold text-red-600 ml-2">{validateDateStr(departureDateStr)}</p>
+                              : <p className="text-[10px] font-bold text-secondary flex items-center gap-1 ml-2"><CheckCircle2 size={10} />{formatDisplayDate(`${parseSmartDate(departureDateStr)}T12:00:00`)}</p>
                             )}
                           </div>
                           <div className="space-y-2">

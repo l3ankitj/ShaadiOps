@@ -17,6 +17,7 @@ import { cn } from '../lib/utils';
 import { downloadGuestTemplate, parseGuestExcel, ParsedRow } from '../lib/guestExcel';
 import { useIsReadOnly } from '../contexts/AccessContext';
 import AddGroupModal from '../components/AddGroupModal';
+import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,13 @@ export default function GuestList() {
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
 
+  // Edit field errors
+  const [editPhoneError, setEditPhoneError] = useState<string | null>(null);
+  const [editArrDateErr, setEditArrDateErr] = useState<string | null>(null);
+  const [editArrTimeErr, setEditArrTimeErr] = useState<string | null>(null);
+  const [editDepDateErr, setEditDepDateErr] = useState<string | null>(null);
+  const [editDepTimeErr, setEditDepTimeErr] = useState<string | null>(null);
+
   // Travel edit state
   const [editShowTravel, setEditShowTravel] = useState(false);
   const [editArrivalMode, setEditArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
@@ -266,7 +274,12 @@ export default function GuestList() {
 
   // Seed travel state whenever a different guest is opened for editing
   useEffect(() => {
-    if (!editingGuest) { setEditShowTravel(false); return; }
+    if (!editingGuest) {
+      setEditShowTravel(false);
+      setEditPhoneError(null); setEditArrDateErr(null); setEditArrTimeErr(null);
+      setEditDepDateErr(null); setEditDepTimeErr(null);
+      return;
+    }
     setEditArrivalMode(editingGuest.arrivalMode ?? ArrivalMode.CAR);
     setEditDepartureMode(editingGuest.departureMode ?? ArrivalMode.CAR);
     setEditArrivalDateStr(isoToDateStr(editingGuest.arrivalDateTime));
@@ -332,6 +345,16 @@ export default function GuestList() {
     e.preventDefault();
     if (!editingGuest) return;
     const fd = new FormData(e.currentTarget);
+
+    // Validate
+    const pErr = validatePhone(fd.get('phone') as string);
+    const adErr = editShowTravel ? validateDateStr(editArrivalDateStr) : null;
+    const atErr = editShowTravel && editArrivalDateStr ? validateTimeStr(editArrivalTimeStr) : null;
+    const ddErr = editShowTravel ? validateDateStr(editDepartureDateStr) : null;
+    const dtErr = editShowTravel && editDepartureDateStr ? validateTimeStr(editDepartureTimeStr) : null;
+    setEditPhoneError(pErr); setEditArrDateErr(adErr); setEditArrTimeErr(atErr);
+    setEditDepDateErr(ddErr); setEditDepTimeErr(dtErr);
+    if (pErr || adErr || atErr || ddErr || dtErr) return;
 
     // Build travel fields from controlled state + form sub-fields
     const travelFields: Partial<Guest> = {};
@@ -722,8 +745,10 @@ export default function GuestList() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Phone</label>
                   <input name="phone" type="tel" defaultValue={editingGuest.phone ?? ''}
-                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none"
+                    onChange={() => setEditPhoneError(null)}
+                    className={`w-full p-3 border rounded-xl bg-surface-container-low text-sm focus:bg-white transition-all outline-none ${editPhoneError ? 'border-red-400 focus:border-red-400' : 'border-outline-variant focus:border-secondary'}`}
                     placeholder="+91 XXXXX XXXXX" />
+                  {editPhoneError && <p className="text-[10px] font-bold text-red-600">{editPhoneError}</p>}
                 </div>
 
                 {/* Invite Status + Family Side */}
@@ -792,14 +817,15 @@ export default function GuestList() {
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-outline uppercase mb-1">Date (DD.MM)</p>
-                            <input value={editArrivalDateStr} onChange={e => setEditArrivalDateStr(e.target.value)} placeholder="e.g. 25.6"
-                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                            <input value={editArrivalDateStr} onChange={e => { setEditArrivalDateStr(e.target.value); setEditArrDateErr(null); }} placeholder="e.g. 25.6"
+                              className={`w-full p-2.5 border rounded-lg bg-white text-sm outline-none ${editArrDateErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
+                            {editArrDateErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editArrDateErr}</p>}
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
                             <div className="flex gap-1">
-                              <input value={editArrivalTimeStr} onChange={e => setEditArrivalTimeStr(e.target.value)} placeholder="10.30"
-                                className="flex-1 min-w-0 p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              <input value={editArrivalTimeStr} onChange={e => { setEditArrivalTimeStr(e.target.value); setEditArrTimeErr(null); }} placeholder="10.30"
+                                className={`flex-1 min-w-0 p-2.5 border rounded-lg bg-white text-sm outline-none ${editArrTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
                               <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
                                 {(['AM', 'PM'] as const).map(p => (
                                   <button key={p} type="button" onClick={() => setEditArrivalAmPm(p)}
@@ -807,6 +833,7 @@ export default function GuestList() {
                                 ))}
                               </div>
                             </div>
+                            {editArrTimeErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editArrTimeErr}</p>}
                           </div>
                         </div>
                         {editArrivalMode === ArrivalMode.TRAIN && (
@@ -850,14 +877,15 @@ export default function GuestList() {
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-outline uppercase mb-1">Date (DD.MM)</p>
-                            <input value={editDepartureDateStr} onChange={e => setEditDepartureDateStr(e.target.value)} placeholder="e.g. 28.6"
-                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                            <input value={editDepartureDateStr} onChange={e => { setEditDepartureDateStr(e.target.value); setEditDepDateErr(null); }} placeholder="e.g. 28.6"
+                              className={`w-full p-2.5 border rounded-lg bg-white text-sm outline-none ${editDepDateErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
+                            {editDepDateErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editDepDateErr}</p>}
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
                             <div className="flex gap-1">
-                              <input value={editDepartureTimeStr} onChange={e => setEditDepartureTimeStr(e.target.value)} placeholder="4.30"
-                                className="flex-1 min-w-0 p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              <input value={editDepartureTimeStr} onChange={e => { setEditDepartureTimeStr(e.target.value); setEditDepTimeErr(null); }} placeholder="4.30"
+                                className={`flex-1 min-w-0 p-2.5 border rounded-lg bg-white text-sm outline-none ${editDepTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
                               <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
                                 {(['AM', 'PM'] as const).map(p => (
                                   <button key={p} type="button" onClick={() => setEditDepartureAmPm(p)}
@@ -865,6 +893,7 @@ export default function GuestList() {
                                 ))}
                               </div>
                             </div>
+                            {editDepTimeErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editDepTimeErr}</p>}
                           </div>
                         </div>
                         {editDepartureMode === ArrivalMode.TRAIN && (

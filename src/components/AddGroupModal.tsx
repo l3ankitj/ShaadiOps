@@ -9,6 +9,7 @@ import { Button } from './UIComponents';
 import { Guest, GuestStatus, InviteStatus, FamilySide } from '../types';
 import { doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { validatePhone } from '../lib/validation';
 import { cn } from '../lib/utils';
 
 interface MemberRow {
@@ -49,6 +50,8 @@ export default function AddGroupModal({ onClose }: AddGroupModalProps) {
     const filled = members.filter(r => r.name.trim());
     if (!groupName.trim()) { setError('Group name is required.'); return; }
     if (filled.length === 0) { setError('Add at least one member name.'); return; }
+    const badPhone = filled.find(r => r.phone.trim() && validatePhone(r.phone));
+    if (badPhone) { setError(`Invalid phone for "${badPhone.name}": ${validatePhone(badPhone.phone)}`); return; }
     setError(null);
     setSaving(true);
 

@@ -10,6 +10,7 @@ import { Vendor } from '../types';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useIsReadOnly } from '../contexts/AccessContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { validatePhone } from '../lib/validation';
 
 export default function VendorSOS() {
   const isReadOnly = useIsReadOnly();
@@ -19,6 +20,7 @@ export default function VendorSOS() {
   const [isAdding, setIsAdding] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
     const fallback = setTimeout(() => setLoading(false), 5000);
@@ -37,12 +39,16 @@ export default function VendorSOS() {
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const phone = fd.get('phone') as string;
+    const pErr = validatePhone(phone) ?? (phone.trim() ? null : 'Phone number is required');
+    if (pErr) { setPhoneError(pErr); return; }
+    setPhoneError(null);
     const id = editingContact?.id ?? `C${Date.now()}`;
     const entry: Vendor = {
       id,
       name: fd.get('name') as string,
       role: fd.get('role') as string,
-      phone: fd.get('phone') as string,
+      phone: phone.trim(),
       notes: (fd.get('notes') as string) || undefined,
     };
     if (!entry.notes) delete entry.notes;
@@ -50,6 +56,7 @@ export default function VendorSOS() {
       await setDoc(doc(db, 'vendors', id), entry);
       setEditingContact(null);
       setIsAdding(false);
+      setPhoneError(null);
     } catch (error) {
       handleFirestoreError(error, editingContact ? OperationType.UPDATE : OperationType.CREATE, `vendors/${id}`);
     }
@@ -64,7 +71,7 @@ export default function VendorSOS() {
     }
   };
 
-  const closeModal = () => { setIsAdding(false); setEditingContact(null); };
+  const closeModal = () => { setIsAdding(false); setEditingContact(null); setPhoneError(null); };
 
   const filtered = contacts.filter(c => {
     if (!searchTerm) return true;
@@ -230,8 +237,10 @@ export default function VendorSOS() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Phone *</label>
                   <input name="phone" required type="tel" defaultValue={prefill?.phone ?? ''}
-                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none"
+                    onChange={() => setPhoneError(null)}
+                    className={`w-full p-3 border rounded-xl bg-surface-container-low text-sm focus:bg-white transition-all outline-none ${phoneError ? 'border-red-400 focus:border-red-400' : 'border-outline-variant focus:border-secondary'}`}
                     placeholder="+91 XXXXX XXXXX" />
+                  {phoneError && <p className="text-[10px] font-bold text-red-600">{phoneError}</p>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Notes (optional)</label>
