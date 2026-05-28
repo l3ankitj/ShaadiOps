@@ -70,12 +70,20 @@ export function Button({
   );
 }
 
-export function StatCard({ title, value, icon: Icon, trend, colorClass = "text-primary" }: { title: string, value: string | number, icon?: React.ElementType, trend?: { value: string, up?: boolean }, colorClass?: string }) {
+export function StatCard({ title, value, icon: Icon, trend, colorClass = "text-primary", onClick, active }: { title: string, value: string | number, icon?: React.ElementType, trend?: { value: string, up?: boolean }, colorClass?: string, onClick?: () => void, active?: boolean }) {
   return (
-    <Card className="flex flex-col justify-between h-40">
+    <Card
+      className={cn(
+        "flex flex-col justify-between h-40 transition-all",
+        onClick && "cursor-pointer hover:shadow-md hover:-translate-y-0.5",
+        active && "ring-2 ring-offset-1 ring-current"
+      )}
+      style={active ? { ['--tw-ring-color' as string]: 'currentColor' } : undefined}
+      onClick={onClick}
+    >
       <div className="flex justify-between items-start">
-        <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{title}</span>
-        {Icon && <Icon className={cn("w-5 h-5 opacity-60", colorClass)} />}
+        <span className={cn("text-[10px] font-bold uppercase tracking-widest", active ? colorClass : "text-on-surface-variant")}>{title}</span>
+        {Icon && <Icon className={cn("w-5 h-5", active ? "opacity-100" : "opacity-60", colorClass)} />}
       </div>
       <div>
         <div className={cn("text-3xl font-bold font-sans", colorClass)}>{value}</div>

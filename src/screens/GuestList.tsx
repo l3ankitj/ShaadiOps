@@ -84,7 +84,7 @@ function InviteStatusBadge({ status }: { status: InviteStatus }) {
   return <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-outline uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-outline" />Pending</span>;
 }
 
-type FilterChip = 'all' | FamilySide | InviteStatus | 'travel';
+type FilterChip = 'all' | FamilySide | InviteStatus | 'travel' | 'groups';
 
 // ─── Import modal ─────────────────────────────────────────────────────────────
 
@@ -248,6 +248,7 @@ export default function GuestList() {
     else if (filter === FamilySide.BRIDE) { if (g.familySide !== FamilySide.BRIDE) return false; }
     else if (filter === FamilySide.GROOM) { if (g.familySide !== FamilySide.GROOM) return false; }
     else if (filter === 'travel') { if (!g.arrivalDateTime) return false; }
+    else if (filter === 'groups') { if (!g.groupName) return false; }
 
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
@@ -457,6 +458,7 @@ export default function GuestList() {
     { label: 'Bride Side', value: FamilySide.BRIDE },
     { label: 'Groom Side', value: FamilySide.GROOM },
     { label: 'Has Travel', value: 'travel' },
+    { label: 'In Groups', value: 'groups' },
   ];
 
   return (
@@ -503,12 +505,20 @@ export default function GuestList() {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — click to filter */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard title="Total People" value={totalPeople} icon={Users} />
-        <StatCard title="Confirmed Coming" value={confirmedCount} icon={CheckCircle2} colorClass="text-emerald-600" />
-        <StatCard title="Travel Confirmed" value={travelConfirmed} icon={Plane} colorClass="text-secondary" />
-        <StatCard title="Families / Groups" value={totalGroups} icon={Users2} colorClass="text-primary" />
+        <StatCard title="Total People" value={totalPeople} icon={Users}
+          onClick={() => setFilter(filter === 'all' ? 'all' : 'all')}
+          active={filter === 'all'} />
+        <StatCard title="Confirmed Coming" value={confirmedCount} icon={CheckCircle2} colorClass="text-emerald-600"
+          onClick={() => setFilter(filter === InviteStatus.CONFIRMED ? 'all' : InviteStatus.CONFIRMED)}
+          active={filter === InviteStatus.CONFIRMED} />
+        <StatCard title="Travel Confirmed" value={travelConfirmed} icon={Plane} colorClass="text-secondary"
+          onClick={() => setFilter(filter === 'travel' ? 'all' : 'travel')}
+          active={filter === 'travel'} />
+        <StatCard title="Families / Groups" value={totalGroups} icon={Users2} colorClass="text-primary"
+          onClick={() => setFilter(filter === 'groups' ? 'all' : 'groups')}
+          active={filter === 'groups'} />
       </div>
 
       {/* Search + filter */}
