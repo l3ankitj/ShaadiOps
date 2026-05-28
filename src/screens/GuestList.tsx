@@ -139,6 +139,7 @@ export default function GuestList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<FilterChip>('all');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const initialCollapseSet = useRef(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
@@ -210,6 +211,14 @@ export default function GuestList() {
     if (b === '_solo') return -1;
     return a.localeCompare(b);
   });
+
+  // Collapse all named groups on first load
+  useEffect(() => {
+    if (loading || initialCollapseSet.current) return;
+    initialCollapseSet.current = true;
+    const namedGroups = new Set(guests.map(g => g.groupName?.trim()).filter((n): n is string => !!n));
+    setCollapsedGroups(namedGroups);
+  }, [loading, guests]);
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
