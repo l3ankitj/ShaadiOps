@@ -4,18 +4,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Car, User, Phone, MessageSquare, PlaneLanding, Plus, X, Search } from 'lucide-react';
+import { Car, User, Phone, Plus, X } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
-import { Vehicle, VehicleStatus, Guest, GuestStatus } from '../types';
+import { Vehicle, VehicleStatus } from '../types';
 import { cn } from '../lib/utils';
-import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export default function TransportDesk() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,23 +22,10 @@ export default function TransportDesk() {
       setLoading(false);
     });
 
-    const unsubGuests = onSnapshot(collection(db, 'guests'), (snap) => {
-      setGuests(snap.docs.map(d => d.data() as Guest));
-    });
-
     return () => {
       unsubVehicles();
-      unsubGuests();
     };
   }, []);
-
-  const handleUpdateStatus = async (guestId: string, newStatus: GuestStatus) => {
-    try {
-      await updateDoc(doc(db, 'guests', guestId), { status: newStatus });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `guests/${guestId}`);
-    }
-  };
 
   const getStatusColor = (status: VehicleStatus) => {
     switch (status) {
@@ -74,67 +59,30 @@ export default function TransportDesk() {
     }
   };
 
-  const travelerQueue = guests
-    .filter(g => (g.status === GuestStatus.PENDING || g.status === GuestStatus.IN_TRANSIT))
-    .filter(g => {
-      if (!searchTerm) return true;
-      const s = searchTerm.toLowerCase();
-      const nameMatch = g.name.toLowerCase().includes(s);
-      const membersMatch = g.memberNames?.some(m => m.toLowerCase().includes(s));
-      return nameMatch || membersMatch;
-    })
-    .sort((a, b) => {
-      const timeA = a.arrivalDateTime ? new Date(a.arrivalDateTime).getTime() : Infinity;
-      const timeB = b.arrivalDateTime ? new Date(b.arrivalDateTime).getTime() : Infinity;
-      return timeA - timeB;
-    });
-
   return (
     <div className="space-y-10">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div className="space-y-4">
+        <div>
           <h2 className="text-3xl md:text-5xl font-display font-bold text-primary">Transport Desk</h2>
-          <div className="relative max-w-md w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-outline" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search guest in queue..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-10 py-3 border border-outline-variant rounded-2xl bg-white shadow-sm focus:border-secondary outline-none text-sm font-medium transition-all"
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-surface-container rounded-full text-outline"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
         </div>
         <div className="flex gap-4">
           <div className="flex flex-col items-center px-8 border-r border-outline-variant">
             <span className="text-3xl font-display font-bold text-primary">{vehicles.length}</span>
             <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">Vehicles</span>
           </div>
-          <div className="flex flex-col items-center px-8 border-r border-outline-variant">
+          <div className="flex flex-col items-center px-8">
             <span className="text-3xl font-display font-bold text-secondary">
               {vehicles.filter(v => v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.IN_TRANSIT).length}
             </span>
             <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">Active</span>
-          </div>
-          <div className="flex flex-col items-center px-8">
-            <span className="text-3xl font-display font-bold text-tertiary">{travelerQueue.length}</span>
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">Queue</span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-8">
         {/* Fleet Console */}
-        <div className="col-span-12 lg:col-span-8 space-y-8">
+        <div className="col-span-12 space-y-8">
           <Card padded={false} className="overflow-hidden">
             <div className="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low/50">
               <h3 className="text-sm font-bold text-primary uppercase tracking-widest">Fleet Management Console</h3>
@@ -181,9 +129,17 @@ export default function TransportDesk() {
                       </div>
                       <div className="mt-5 pt-4 border-t border-outline-variant flex justify-between items-center">
                         <div className="flex gap-2">
-                          <button className="p-2 border border-secondary text-secondary rounded-lg hover:bg-secondary-container transition-all">
-                            <MessageSquare size={16} />
-                          </button>
+                          <a
+                            href={`https://wa.me/${vehicle.phone.replace(/[\s\-+() ]/g, '')}?text=Hi, regarding transport for the wedding`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 border border-emerald-500 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all flex items-center justify-center"
+                            title="WhatsApp"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                          </a>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <div className={cn("w-1.5 h-1.5 rounded-full", getStatusColor(vehicle.status), vehicle.status === VehicleStatus.IN_TRANSIT || vehicle.status === VehicleStatus.DELAYED ? "animate-pulse" : "")} />
@@ -198,49 +154,6 @@ export default function TransportDesk() {
           </Card>
         </div>
 
-        {/* Traveler Queue */}
-        <div className="col-span-12 lg:col-span-4">
-          <div className="bg-white border border-secondary/20 rounded-xl overflow-hidden h-full flex flex-col shadow-sm">
-            <div className="px-6 py-8 border-b border-outline-variant bg-surface-container-low/50">
-              <h3 className="text-2xl font-display font-bold text-primary">Traveler Queue</h3>
-              <p className="text-xs font-medium text-on-surface-variant opacity-70 mt-1">Pending arrivals needing transport</p>
-            </div>
-            <div className="p-4 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
-              {travelerQueue.length === 0 ? (
-                <div className="text-center py-12 text-on-surface-variant text-xs font-medium italic">
-                  No active arrivals in queue.
-                </div>
-              ) : (
-                travelerQueue.map((item) => (
-                  <div key={item.id} className="p-4 bg-surface-container-lowest border border-outline-variant rounded-lg hover:border-secondary transition-colors cursor-pointer group">
-                    <div className="flex justify-between items-start mb-2">
-                      <h5 className="text-sm font-bold text-on-surface">{item.name} ({item.headcount})</h5>
-                      <span className="text-[8px] font-bold text-tertiary-container bg-tertiary-container/10 px-2 py-0.5 rounded border border-tertiary/20 uppercase tracking-widest">{item.familySide}</span>
-                    </div>
-                    <div className="flex flex-col gap-1 mb-4">
-                      <div className="flex items-center gap-2">
-                        <PlaneLanding size={12} className="text-secondary" />
-                        <span className="text-xs font-bold text-primary">{item.travelDetails}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-secondary"></div>
-                        <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-                          {item.arrivalDateTime ? new Date(item.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'TBD'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleUpdateStatus(item.id, GuestStatus.IN_TRANSIT)}
-                        className="flex-1 bg-primary-container text-on-primary-container py-2 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all transform active:scale-[0.98]"
-                      >Assign Driver</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Add Vehicle Modal */}
