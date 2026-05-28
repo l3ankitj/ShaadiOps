@@ -195,6 +195,9 @@ export default function GuestList() {
   const [editDepDateErr, setEditDepDateErr] = useState<string | null>(null);
   const [editDepTimeErr, setEditDepTimeErr] = useState<string | null>(null);
 
+  // Group edit state
+  const [editGroupName, setEditGroupName] = useState('');
+
   // Travel edit state
   const [editShowTravel, setEditShowTravel] = useState(false);
   const [editArrivalMode, setEditArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
@@ -285,10 +288,12 @@ export default function GuestList() {
   useEffect(() => {
     if (!editingGuest) {
       setEditShowTravel(false);
+      setEditGroupName('');
       setEditPhoneError(null); setEditArrDateErr(null); setEditArrTimeErr(null);
       setEditDepDateErr(null); setEditDepTimeErr(null);
       return;
     }
+    setEditGroupName(editingGuest.groupName ?? '');
     setEditArrivalMode(editingGuest.arrivalMode ?? ArrivalMode.CAR);
     setEditDepartureMode(editingGuest.departureMode ?? ArrivalMode.CAR);
     setEditArrivalDateStr(isoToDateStr(editingGuest.arrivalDateTime));
@@ -398,16 +403,18 @@ export default function GuestList() {
 
     // If a group member's travel is individually edited, flag it as custom
     const travelChanged = editShowTravel && (editArrivalDateStr || editDepartureDateStr);
+    const newGroupName = editGroupName.trim() || undefined;
     const updated: Guest = {
       ...editingGuest,
       name: (fd.get('name') as string).trim(),
       phone: (fd.get('phone') as string).trim() || undefined,
+      groupName: newGroupName,
       inviteStatus: fd.get('inviteStatus') as InviteStatus,
       familySide: fd.get('familySide') as FamilySide,
       notes: (fd.get('notes') as string).trim() || undefined,
-      isPrimaryContact: fd.get('isPrimaryContact') === 'on',
+      isPrimaryContact: newGroupName ? (fd.get('isPrimaryContact') === 'on') : undefined,
       // Mark as custom travel if this group member's travel was individually set
-      customTravel: editingGuest.groupName && travelChanged ? true : undefined,
+      customTravel: newGroupName && travelChanged ? true : undefined,
       // Reset all travel fields then apply new values
       arrivalMode: undefined, arrivalDateTime: undefined,
       departureMode: undefined, departureDateTime: undefined,
@@ -801,6 +808,26 @@ export default function GuestList() {
                   </div>
                 </div>
 
+                {/* Group */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Group / Family Name</label>
+                  <input
+                    value={editGroupName}
+                    onChange={e => setEditGroupName(e.target.value)}
+                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none"
+                    placeholder="e.g. Sharma Family (leave blank for solo)" />
+                  {editGroupName.trim() && editGroupName.trim() !== (editingGuest.groupName ?? '') && (
+                    <p className="text-[10px] text-secondary font-bold">
+                      {editingGuest.groupName
+                        ? `Will move from "${editingGuest.groupName}" to "${editGroupName.trim()}"`
+                        : `Will be added to "${editGroupName.trim()}"`}
+                    </p>
+                  )}
+                  {!editGroupName.trim() && editingGuest.groupName && (
+                    <p className="text-[10px] text-amber-600 font-bold">Will be removed from "{editingGuest.groupName}"</p>
+                  )}
+                </div>
+
                 {/* Notes */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Notes</label>
@@ -810,7 +837,7 @@ export default function GuestList() {
                 </div>
 
                 {/* Primary contact toggle (only for group members) */}
-                {editingGuest.groupName && (
+                {editGroupName.trim() && (
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <input type="checkbox" name="isPrimaryContact" defaultChecked={!!editingGuest.isPrimaryContact}
                       className="w-4 h-4 accent-secondary" />
