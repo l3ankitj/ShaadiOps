@@ -26,6 +26,17 @@ export default function HotelTracker() {
   const [confirmDeleteRoomId, setConfirmDeleteRoomId] = useState<string | null>(null);
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
   const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+  const initialCollapsed = useRef(false);
+
+  // Collapse all hotels and floors on first load
+  useEffect(() => {
+    if (loading || initialCollapsed.current || rooms.length === 0) return;
+    initialCollapsed.current = true;
+    const hotelSet = new Set(rooms.map(r => r.hotel));
+    const floorSet = new Set(rooms.map(r => `${r.hotel}::${r.floor}`));
+    setCollapsedHotels(hotelSet);
+    setCollapsedFloors(floorSet);
+  }, [loading, rooms]);
 
   const toggleHotel = (hotel: string) =>
     setCollapsedHotels(prev => { const n = new Set(prev); n.has(hotel) ? n.delete(hotel) : n.add(hotel); return n; });
