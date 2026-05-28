@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, Search, X, Plane, Car, Train, Bus,
   Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2,
-  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2,
+  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2, Pencil,
 } from 'lucide-react';
 import { Card, StatCard, Badge, Button } from '../components/UIComponents';
 import { collection, onSnapshot, orderBy, query, setDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -140,6 +140,7 @@ export default function GuestList() {
   const [filter, setFilter] = useState<FilterChip>('all');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -251,6 +252,31 @@ export default function GuestList() {
   };
 
   const handleCloseImport = () => { setImportRows(null); setImportDone(false); setImporting(false); };
+
+  const handleEditSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingGuest) return;
+    const fd = new FormData(e.currentTarget);
+    const phone = (fd.get('phone') as string).trim();
+    const notes = (fd.get('notes') as string).trim();
+    const updated: Guest = {
+      ...editingGuest,
+      name: (fd.get('name') as string).trim(),
+      phone: phone || undefined,
+      inviteStatus: fd.get('inviteStatus') as InviteStatus,
+      familySide: fd.get('familySide') as FamilySide,
+      notes: notes || undefined,
+      isPrimaryContact: fd.get('isPrimaryContact') === 'on',
+    };
+    if (!updated.phone) delete updated.phone;
+    if (!updated.notes) delete updated.notes;
+    try {
+      await setDoc(doc(db, 'guests', editingGuest.id), updated);
+      setEditingGuest(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `guests/${editingGuest.id}`);
+    }
+  };
 
   const handleDelete = async (guestId: string) => {
     try {
@@ -486,33 +512,44 @@ export default function GuestList() {
                             )}
                           </div>
 
-                          {/* Delete */}
-                          {!isReadOnly && <div className="shrink-0 sm:w-20 flex items-center justify-end">
-                            {confirmDeleteId === guest.id ? (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => handleDelete(guest.id)}
-                                  className="text-[9px] font-bold text-white bg-red-500 px-2 py-1 rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteId(null)}
-                                  className="text-[9px] font-bold text-outline hover:text-on-surface"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setConfirmDeleteId(guest.id)}
-                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50 text-outline hover:text-red-500 transition-all"
-                                title="Delete guest"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>}
+                          {/* Edit + Delete */}
+                          {!isReadOnly && (
+                            <div className="shrink-0 flex items-center gap-1">
+                              {confirmDeleteId === guest.id ? (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => handleDelete(guest.id)}
+                                    className="text-[9px] font-bold text-white bg-red-500 px-2 py-1 rounded hover:bg-red-600 transition-colors"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="text-[9px] font-bold text-outline hover:text-on-surface"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => setEditingGuest(guest)}
+                                    className="p-1.5 rounded text-outline hover:text-primary hover:bg-surface-container transition-all"
+                                    title="Edit guest"
+                                  >
+                                    <Pencil size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(guest.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50 text-outline hover:text-red-500 transition-all"
+                                    title="Delete guest"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -528,6 +565,86 @@ export default function GuestList() {
         <p className="text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest opacity-60">
           {confirmedCount} confirmed · {totalPeople - confirmedCount} pending/declined
         </p>
+      )}
+
+      {/* Edit Guest Modal */}
+      {editingGuest && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-primary/20 backdrop-blur-sm" onClick={() => setEditingGuest(null)} />
+          <div className="relative w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <form onSubmit={handleEditSave}>
+              <div className="px-6 py-5 border-b border-outline-variant flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Edit Guest</p>
+                  <h3 className="text-base font-bold text-primary mt-0.5">{editingGuest.name}</h3>
+                </div>
+                <button type="button" onClick={() => setEditingGuest(null)} className="p-2 hover:bg-surface-container rounded-full text-outline">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {/* Name */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Name *</label>
+                  <input name="name" required autoFocus defaultValue={editingGuest.name}
+                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none" />
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Phone</label>
+                  <input name="phone" type="tel" defaultValue={editingGuest.phone ?? ''}
+                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none"
+                    placeholder="+91 XXXXX XXXXX" />
+                </div>
+
+                {/* Invite Status + Family Side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Invite Status</label>
+                    <select name="inviteStatus" defaultValue={editingGuest.inviteStatus}
+                      className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none">
+                      <option value={InviteStatus.PENDING}>Pending</option>
+                      <option value={InviteStatus.CONFIRMED}>Confirmed</option>
+                      <option value={InviteStatus.DECLINED}>Declined</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Side</label>
+                    <select name="familySide" defaultValue={editingGuest.familySide}
+                      className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none">
+                      <option value={FamilySide.BRIDE}>Bride Side</option>
+                      <option value={FamilySide.GROOM}>Groom Side</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Notes</label>
+                  <input name="notes" defaultValue={editingGuest.notes ?? ''}
+                    className="w-full p-3 border border-outline-variant rounded-xl bg-surface-container-low text-sm focus:border-secondary focus:bg-white transition-all outline-none"
+                    placeholder="Dietary, special needs, etc." />
+                </div>
+
+                {/* Primary contact toggle (only for group members) */}
+                {editingGuest.groupName && (
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input type="checkbox" name="isPrimaryContact" defaultChecked={!!editingGuest.isPrimaryContact}
+                      className="w-4 h-4 accent-secondary" />
+                    <span className="text-sm font-bold text-on-surface">Primary contact for group</span>
+                  </label>
+                )}
+              </div>
+
+              <div className="px-6 pb-6 flex justify-end gap-3 border-t border-outline-variant pt-4">
+                <Button type="button" variant="ghost" onClick={() => setEditingGuest(null)}>Cancel</Button>
+                <Button type="submit" variant="primary">Save Changes</Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
