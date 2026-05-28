@@ -573,7 +573,7 @@ export default function GuestList() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {sortedGroupKeys.map(groupKey => {
             const members = groupMap.get(groupKey)!;
             const isNamedGroup = groupKey !== '_solo';
@@ -582,42 +582,62 @@ export default function GuestList() {
             const confirmedInGroup = members.filter(m => (m.inviteStatus ?? InviteStatus.PENDING) === InviteStatus.CONFIRMED).length;
             const travelInGroup = members.filter(m => !!m.arrivalDateTime).length;
 
+            const isBride = groupFamilySide === FamilySide.BRIDE;
+
             return (
-              <div key={groupKey} className="bg-white rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
+              <div key={groupKey} className={cn(
+                'bg-white rounded-xl border border-outline-variant/50 overflow-hidden',
+                isNamedGroup && (isBride ? 'border-l-[3px] border-l-pink-400' : 'border-l-[3px] border-l-secondary')
+              )}>
                 {/* Group header (only for named groups) */}
                 {isNamedGroup && (
-                  <div className="flex items-center px-5 py-3.5 bg-surface-container hover:bg-surface-container-high transition-colors gap-2">
-                    {/* Clickable summary area — toggles collapse */}
-                    <div className="flex items-center gap-3 flex-wrap flex-1 cursor-pointer min-w-0"
-                      onClick={() => toggleGroup(groupKey)}>
-                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <Users2 size={13} className="text-on-primary" />
+                  <div className="flex items-center px-4 py-3 bg-surface-container/50 hover:bg-surface-container transition-colors gap-2">
+                    {/* Clickable area — name + stats */}
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleGroup(groupKey)}>
+                      {/* Row 1: name + side pill */}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-on-surface truncate">{groupKey}</span>
+                        <span className={cn(
+                          'text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0',
+                          isBride
+                            ? 'bg-pink-50 text-pink-600 border border-pink-200'
+                            : 'bg-secondary/10 text-secondary border border-secondary/30'
+                        )}>
+                          {isBride ? 'Bride' : 'Groom'}
+                        </span>
                       </div>
-                      <span className="font-bold text-sm text-primary truncate">{groupKey}</span>
-                      <Badge variant={groupFamilySide === FamilySide.BRIDE ? 'primary' : 'secondary'} className="text-[9px]">
-                        {groupFamilySide === FamilySide.BRIDE ? 'Bride' : 'Groom'}
-                      </Badge>
-                      <span className="text-[10px] text-outline">{members.length} {members.length === 1 ? 'person' : 'people'}</span>
-                      {confirmedInGroup > 0 && (
-                        <span className="text-[10px] text-emerald-600 font-bold">{confirmedInGroup} confirmed</span>
-                      )}
-                      {travelInGroup > 0 && (
-                        <span className="text-[10px] text-secondary font-bold">{travelInGroup} travel ✓</span>
-                      )}
+                      {/* Row 2: stats — muted */}
+                      <div className="flex items-center gap-2.5 mt-0.5">
+                        <span className="text-[10px] text-outline">
+                          {members.length} {members.length === 1 ? 'person' : 'people'}
+                        </span>
+                        {confirmedInGroup > 0 && (
+                          <span className="text-[10px] text-emerald-600">
+                            · {confirmedInGroup} confirmed
+                          </span>
+                        )}
+                        {travelInGroup > 0 && (
+                          <span className="text-[10px] text-secondary">
+                            · {travelInGroup} travel
+                          </span>
+                        )}
+                      </div>
                     </div>
+
                     {/* Edit group button */}
                     {!isReadOnly && (
                       <button
                         onClick={e => { e.stopPropagation(); setEditingGroup(groupKey); }}
-                        className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-white transition-all shrink-0"
+                        className="p-1.5 rounded-lg text-outline/50 hover:text-primary hover:bg-white transition-all shrink-0"
                         title="Edit group"
                       >
-                        <Pencil size={13} />
+                        <Pencil size={12} />
                       </button>
                     )}
-                    {/* Collapse toggle */}
-                    <button onClick={() => toggleGroup(groupKey)} className="p-1 text-outline shrink-0">
-                      {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+
+                    {/* Collapse chevron */}
+                    <button onClick={() => toggleGroup(groupKey)} className="p-1 text-outline/50 shrink-0">
+                      {isCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                     </button>
                   </div>
                 )}
