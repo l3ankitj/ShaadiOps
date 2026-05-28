@@ -580,7 +580,10 @@ export default function GuestList() {
             const isCollapsed = collapsedGroups.has(groupKey);
             const groupFamilySide = members[0]?.familySide;
             const confirmedInGroup = members.filter(m => (m.inviteStatus ?? InviteStatus.PENDING) === InviteStatus.CONFIRMED).length;
-            const travelInGroup = members.filter(m => !!m.arrivalDateTime).length;
+            const declinedInGroup  = members.filter(m => (m.inviteStatus ?? InviteStatus.PENDING) === InviteStatus.DECLINED).length;
+            const travelInGroup    = members.filter(m => !!m.arrivalDateTime).length;
+            const checkedInGroup   = members.filter(m => m.roomNumber).length;
+            const allConfirmed     = confirmedInGroup === members.length;
 
             const isBride = groupFamilySide === FamilySide.BRIDE;
 
@@ -591,14 +594,15 @@ export default function GuestList() {
               )}>
                 {/* Group header (only for named groups) */}
                 {isNamedGroup && (
-                  <div className="flex items-center px-4 py-3 bg-surface-container/50 hover:bg-surface-container transition-colors gap-2">
-                    {/* Clickable area — name + stats */}
+                  <div className="flex items-center px-4 py-3.5 bg-surface-container/40 hover:bg-surface-container/70 transition-colors gap-3">
+                    {/* Clickable area */}
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleGroup(groupKey)}>
+
                       {/* Row 1: name + side pill */}
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-on-surface truncate">{groupKey}</span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-base text-on-surface truncate leading-tight">{groupKey}</span>
                         <span className={cn(
-                          'text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0',
+                          'text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0',
                           isBride
                             ? 'bg-pink-50 text-pink-600 border border-pink-200'
                             : 'bg-secondary/10 text-secondary border border-secondary/30'
@@ -606,19 +610,38 @@ export default function GuestList() {
                           {isBride ? 'Bride' : 'Groom'}
                         </span>
                       </div>
-                      {/* Row 2: stats — muted */}
-                      <div className="flex items-center gap-2.5 mt-0.5">
-                        <span className="text-[10px] text-outline">
+
+                      {/* Row 2: rich stats */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="flex items-center gap-1 text-xs text-outline">
+                          <Users2 size={11} className="shrink-0" />
                           {members.length} {members.length === 1 ? 'person' : 'people'}
                         </span>
-                        {confirmedInGroup > 0 && (
-                          <span className="text-[10px] text-emerald-600">
-                            · {confirmedInGroup} confirmed
+
+                        {allConfirmed ? (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                            <CheckCircle2 size={11} className="shrink-0" />All confirmed
+                          </span>
+                        ) : confirmedInGroup > 0 ? (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                            <CheckCircle2 size={11} className="shrink-0" />{confirmedInGroup}/{members.length} confirmed
+                          </span>
+                        ) : null}
+
+                        {declinedInGroup > 0 && (
+                          <span className="text-xs text-red-500 font-medium">{declinedInGroup} declined</span>
+                        )}
+
+                        {travelInGroup > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-secondary font-medium">
+                            <Plane size={11} className="shrink-0" />
+                            {travelInGroup === members.length ? 'All travel ✓' : `${travelInGroup} travel`}
                           </span>
                         )}
-                        {travelInGroup > 0 && (
-                          <span className="text-[10px] text-secondary">
-                            · {travelInGroup} travel
+
+                        {checkedInGroup > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                            <BedDouble size={11} className="shrink-0" />{checkedInGroup} in hotel
                           </span>
                         )}
                       </div>
@@ -631,13 +654,13 @@ export default function GuestList() {
                         className="p-1.5 rounded-lg text-outline/50 hover:text-primary hover:bg-white transition-all shrink-0"
                         title="Edit group"
                       >
-                        <Pencil size={12} />
+                        <Pencil size={13} />
                       </button>
                     )}
 
                     {/* Collapse chevron */}
                     <button onClick={() => toggleGroup(groupKey)} className="p-1 text-outline/50 shrink-0">
-                      {isCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                      {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                     </button>
                   </div>
                 )}
