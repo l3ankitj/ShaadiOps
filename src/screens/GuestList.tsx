@@ -595,56 +595,50 @@ export default function GuestList() {
                 {/* Group header (only for named groups) */}
                 {isNamedGroup && (
                   <div className="flex items-center px-4 py-3.5 bg-surface-container/40 hover:bg-surface-container/70 transition-colors gap-3">
-                    {/* Clickable area */}
-                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleGroup(groupKey)}>
+                    {/* Single-line clickable area */}
+                    <div className="flex-1 min-w-0 cursor-pointer flex items-center gap-3 flex-wrap" onClick={() => toggleGroup(groupKey)}>
+                      <span className="font-bold text-[19px] text-on-surface leading-tight shrink-0">{groupKey}</span>
 
-                      {/* Row 1: name + side pill */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-base text-on-surface truncate leading-tight">{groupKey}</span>
-                        <span className={cn(
-                          'text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0',
-                          isBride
-                            ? 'bg-pink-50 text-pink-600 border border-pink-200'
-                            : 'bg-secondary/10 text-secondary border border-secondary/30'
-                        )}>
-                          {isBride ? 'Bride' : 'Groom'}
+                      <span className={cn(
+                        'text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0',
+                        isBride
+                          ? 'bg-pink-50 text-pink-600 border border-pink-200'
+                          : 'bg-secondary/10 text-secondary border border-secondary/30'
+                      )}>
+                        {isBride ? 'Bride' : 'Groom'}
+                      </span>
+
+                      <span className="flex items-center gap-1 text-sm text-outline">
+                        <Users2 size={13} className="shrink-0" />
+                        {members.length} {members.length === 1 ? 'person' : 'people'}
+                      </span>
+
+                      {allConfirmed ? (
+                        <span className="flex items-center gap-1 text-sm text-emerald-600 font-medium">
+                          <CheckCircle2 size={13} className="shrink-0" />All confirmed
                         </span>
-                      </div>
-
-                      {/* Row 2: rich stats */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="flex items-center gap-1 text-xs text-outline">
-                          <Users2 size={11} className="shrink-0" />
-                          {members.length} {members.length === 1 ? 'person' : 'people'}
+                      ) : confirmedInGroup > 0 ? (
+                        <span className="flex items-center gap-1 text-sm text-emerald-600 font-medium">
+                          <CheckCircle2 size={13} className="shrink-0" />{confirmedInGroup}/{members.length} confirmed
                         </span>
+                      ) : null}
 
-                        {allConfirmed ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <CheckCircle2 size={11} className="shrink-0" />All confirmed
-                          </span>
-                        ) : confirmedInGroup > 0 ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <CheckCircle2 size={11} className="shrink-0" />{confirmedInGroup}/{members.length} confirmed
-                          </span>
-                        ) : null}
+                      {declinedInGroup > 0 && (
+                        <span className="text-sm text-red-500 font-medium">{declinedInGroup} declined</span>
+                      )}
 
-                        {declinedInGroup > 0 && (
-                          <span className="text-xs text-red-500 font-medium">{declinedInGroup} declined</span>
-                        )}
+                      {travelInGroup > 0 && (
+                        <span className="flex items-center gap-1 text-sm text-secondary font-medium">
+                          <Plane size={13} className="shrink-0" />
+                          {travelInGroup === members.length ? 'All travel ✓' : `${travelInGroup} travel`}
+                        </span>
+                      )}
 
-                        {travelInGroup > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-secondary font-medium">
-                            <Plane size={11} className="shrink-0" />
-                            {travelInGroup === members.length ? 'All travel ✓' : `${travelInGroup} travel`}
-                          </span>
-                        )}
-
-                        {checkedInGroup > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                            <BedDouble size={11} className="shrink-0" />{checkedInGroup} in hotel
-                          </span>
-                        )}
-                      </div>
+                      {checkedInGroup > 0 && (
+                        <span className="flex items-center gap-1 text-sm text-primary font-medium">
+                          <BedDouble size={13} className="shrink-0" />{checkedInGroup} in hotel
+                        </span>
+                      )}
                     </div>
 
                     {/* Edit group button */}
