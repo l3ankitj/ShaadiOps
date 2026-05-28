@@ -17,6 +17,7 @@ import { cn } from '../lib/utils';
 import { downloadGuestTemplate, parseGuestExcel, ParsedRow } from '../lib/guestExcel';
 import { useIsReadOnly } from '../contexts/AccessContext';
 import AddGroupModal from '../components/AddGroupModal';
+import EditGroupModal from '../components/EditGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 import { useEscapeKey } from '../lib/useEscapeKey';
 
@@ -185,6 +186,7 @@ export default function GuestList() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
 
   // Edit field errors
   const [editPhoneError, setEditPhoneError] = useState<string | null>(null);
@@ -275,6 +277,7 @@ export default function GuestList() {
 
   useEscapeKey(() => {
     if (editingGuest) { setEditingGuest(null); return; }
+    if (editingGroup) { setEditingGroup(null); return; }
     if (isAddingGroup) setIsAddingGroup(false);
   });
 
@@ -393,6 +396,8 @@ export default function GuestList() {
       }
     }
 
+    // If a group member's travel is individually edited, flag it as custom
+    const travelChanged = editShowTravel && (editArrivalDateStr || editDepartureDateStr);
     const updated: Guest = {
       ...editingGuest,
       name: (fd.get('name') as string).trim(),
@@ -401,6 +406,8 @@ export default function GuestList() {
       familySide: fd.get('familySide') as FamilySide,
       notes: (fd.get('notes') as string).trim() || undefined,
       isPrimaryContact: fd.get('isPrimaryContact') === 'on',
+      // Mark as custom travel if this group member's travel was individually set
+      customTravel: editingGuest.groupName && travelChanged ? true : undefined,
       // Reset all travel fields then apply new values
       arrivalMode: undefined, arrivalDateTime: undefined,
       departureMode: undefined, departureDateTime: undefined,
@@ -562,15 +569,14 @@ export default function GuestList() {
               <div key={groupKey} className="bg-white rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
                 {/* Group header (only for named groups) */}
                 {isNamedGroup && (
-                  <div
-                    className="flex items-center justify-between px-5 py-3.5 bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors"
-                    onClick={() => toggleGroup(groupKey)}
-                  >
-                    <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center px-5 py-3.5 bg-surface-container hover:bg-surface-container-high transition-colors gap-2">
+                    {/* Clickable summary area — toggles collapse */}
+                    <div className="flex items-center gap-3 flex-wrap flex-1 cursor-pointer min-w-0"
+                      onClick={() => toggleGroup(groupKey)}>
                       <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
                         <Users2 size={13} className="text-on-primary" />
                       </div>
-                      <span className="font-bold text-sm text-primary">{groupKey}</span>
+                      <span className="font-bold text-sm text-primary truncate">{groupKey}</span>
                       <Badge variant={groupFamilySide === FamilySide.BRIDE ? 'primary' : 'secondary'} className="text-[9px]">
                         {groupFamilySide === FamilySide.BRIDE ? 'Bride' : 'Groom'}
                       </Badge>
@@ -582,9 +588,20 @@ export default function GuestList() {
                         <span className="text-[10px] text-secondary font-bold">{travelInGroup} travel ✓</span>
                       )}
                     </div>
-                    {isCollapsed
-                      ? <ChevronDown size={16} className="text-outline shrink-0" />
-                      : <ChevronUp size={16} className="text-outline shrink-0" />}
+                    {/* Edit group button */}
+                    {!isReadOnly && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingGroup(groupKey); }}
+                        className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-white transition-all shrink-0"
+                        title="Edit group"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {/* Collapse toggle */}
+                    <button onClick={() => toggleGroup(groupKey)} className="p-1 text-outline shrink-0">
+                      {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </button>
                   </div>
                 )}
 
@@ -615,6 +632,9 @@ export default function GuestList() {
                                 <span className="text-[8px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Primary</span>
                               )}
                               <span className="text-sm font-bold text-primary truncate">{guest.name}</span>
+                              {guest.customTravel && (
+                                <span className="text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">Custom travel</span>
+                              )}
                               {guest.notes && <StickyNote size={11} className="text-secondary/60 shrink-0" title={guest.notes} />}
                             </div>
                             {guest.phone && (
@@ -722,6 +742,9 @@ export default function GuestList() {
 
       {/* Add Group Modal */}
       {isAddingGroup && <AddGroupModal onClose={() => setIsAddingGroup(false)} />}
+
+      {/* Edit Group Modal */}
+      {editingGroup && <EditGroupModal groupName={editingGroup} onClose={() => setEditingGroup(null)} />}
 
       {/* Edit Guest Modal */}
       {editingGuest && (

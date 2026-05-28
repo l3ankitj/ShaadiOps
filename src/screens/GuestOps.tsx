@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
+import EditGroupModal from '../components/EditGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import { cn } from '../lib/utils';
@@ -88,6 +89,7 @@ export default function GuestOps() {
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isAddingGuest, setIsAddingGuest] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterArrivingToday, setFilterArrivingToday] = useState(false);
@@ -130,6 +132,7 @@ export default function GuestOps() {
   useEscapeKey(() => {
     if (isAddingGuest) { setIsAddingGuest(false); resetForm(); return; }
     if (isAddingGroup) { setIsAddingGroup(false); return; }
+    if (editingGroup) { setEditingGroup(null); return; }
     if (selectedGuest) setSelectedGuest(null);
   });
 
@@ -587,6 +590,9 @@ export default function GuestOps() {
       {/* Add Group Modal */}
       {isAddingGroup && <AddGroupModal onClose={() => setIsAddingGroup(false)} />}
 
+      {/* Edit Group Modal */}
+      {editingGroup && <EditGroupModal groupName={editingGroup} onClose={() => setEditingGroup(null)} />}
+
       {/* Add Guest Modal */}
       {isAddingGuest && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4">
@@ -911,7 +917,13 @@ export default function GuestOps() {
                   <h3 className="text-xl font-display font-bold">{selectedGuest.name}</h3>
                   {selectedGuest.groupName && (
                     <p className="text-[10px] font-bold opacity-70 flex items-center gap-1 mt-0.5">
-                      <Users2 size={10} />{selectedGuest.groupName}
+                      <Users2 size={10} />
+                      {!isReadOnly ? (
+                        <button onClick={() => setEditingGroup(selectedGuest.groupName!)}
+                          className="hover:underline underline-offset-2 hover:opacity-100 transition-opacity">
+                          {selectedGuest.groupName}
+                        </button>
+                      ) : selectedGuest.groupName}
                       {selectedGuest.isPrimaryContact && ' · Primary Contact'}
                     </p>
                   )}
@@ -943,7 +955,15 @@ export default function GuestOps() {
                     {selectedGuest.groupName && (
                       <div className="pt-2 border-t border-outline-variant/30">
                         <p className="text-[9px] font-bold text-outline uppercase mb-1">Group</p>
-                        <p className="text-xs font-bold text-secondary">{selectedGuest.groupName}</p>
+                        {!isReadOnly ? (
+                          <button onClick={() => setEditingGroup(selectedGuest.groupName!)}
+                            className="text-xs font-bold text-secondary hover:underline underline-offset-2 flex items-center gap-1">
+                            <Users2 size={11} />{selectedGuest.groupName}
+                            <span className="text-[8px] text-outline normal-case font-normal">(edit group)</span>
+                          </button>
+                        ) : (
+                          <p className="text-xs font-bold text-secondary">{selectedGuest.groupName}</p>
+                        )}
                       </div>
                     )}
                   </div>

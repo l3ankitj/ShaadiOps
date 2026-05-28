@@ -63,6 +63,9 @@ export interface Guest {
   // Flight specific
   arrivalFlightNumber?: string;
   departureFlightNumber?: string;
+  // Group travel flag — set when this member's travel was individually edited
+  // after a bulk group travel was applied. Cleared on next bulk group update.
+  customTravel?: boolean;
 }
 
 export enum VehicleStatus {
