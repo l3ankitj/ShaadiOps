@@ -11,6 +11,7 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firesto
 import { useIsReadOnly } from '../contexts/AccessContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { validatePhone } from '../lib/validation';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 export default function VendorSOS() {
   const isReadOnly = useIsReadOnly();
@@ -72,6 +73,7 @@ export default function VendorSOS() {
   };
 
   const closeModal = () => { setIsAdding(false); setEditingContact(null); setPhoneError(null); };
+  useEscapeKey(() => { if (isAdding || editingContact) closeModal(); });
 
   const filtered = contacts.filter(c => {
     if (!searchTerm) return true;

@@ -11,6 +11,7 @@ import { Room, RoomStatus, Guest, GuestStatus, InviteStatus } from '../types';
 import { collection, onSnapshot, doc, setDoc, writeBatch, deleteField, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useIsReadOnly } from '../contexts/AccessContext';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import { downloadRoomTemplate, parseRoomExcel, ParsedRoomRow } from '../lib/roomExcel';
 
 export default function HotelTracker() {
@@ -37,6 +38,13 @@ export default function HotelTracker() {
     setCollapsedHotels(hotelSet);
     setCollapsedFloors(floorSet);
   }, [loading, rooms]);
+
+  useEscapeKey(() => {
+    if (occupiedRoom) { setOccupiedRoom(null); return; }
+    if (selectedRoom) { setSelectedRoom(null); setSelectedGuestIds([]); return; }
+    if (isAddingRoom) { setIsAddingRoom(false); return; }
+    if (importRows) handleCloseImport();
+  });
 
   const toggleHotel = (hotel: string) =>
     setCollapsedHotels(prev => { const n = new Set(prev); n.has(hotel) ? n.delete(hotel) : n.add(hotel); return n; });

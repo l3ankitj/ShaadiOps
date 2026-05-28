@@ -18,6 +18,7 @@ import { downloadGuestTemplate, parseGuestExcel, ParsedRow } from '../lib/guestE
 import { useIsReadOnly } from '../contexts/AccessContext';
 import AddGroupModal from '../components/AddGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
+import { useEscapeKey } from '../lib/useEscapeKey';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -270,6 +271,11 @@ export default function GuestList() {
     if (a === '_solo') return 1;
     if (b === '_solo') return -1;
     return a.localeCompare(b);
+  });
+
+  useEscapeKey(() => {
+    if (editingGuest) { setEditingGuest(null); return; }
+    if (isAddingGroup) setIsAddingGroup(false);
   });
 
   // Seed travel state whenever a different guest is opened for editing

@@ -13,6 +13,7 @@ import {
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import { cn } from '../lib/utils';
 import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../types';
 import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, deleteField, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -114,6 +115,12 @@ export default function GuestOps() {
     });
     return () => { clearTimeout(fallback); unsubscribe(); };
   }, []);
+
+  useEscapeKey(() => {
+    if (isAddingGuest) { setIsAddingGuest(false); resetForm(); return; }
+    if (isAddingGroup) { setIsAddingGroup(false); return; }
+    if (selectedGuest) setSelectedGuest(null);
+  });
 
   const resetForm = () => {
     setFormGroupName('');

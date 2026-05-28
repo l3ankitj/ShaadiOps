@@ -10,6 +10,7 @@ import { Guest, GuestStatus, InviteStatus, FamilySide } from '../types';
 import { doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { validatePhone } from '../lib/validation';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import { cn } from '../lib/utils';
 
 interface MemberRow {
@@ -34,6 +35,7 @@ export default function AddGroupModal({ onClose }: AddGroupModalProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEscapeKey(onClose);
   const addRow = () => setMembers(prev => [...prev, emptyRow()]);
 
   const removeRow = (key: string) => {
