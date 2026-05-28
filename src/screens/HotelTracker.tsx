@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, PlusCircle, Lock, Wrench, X, Search, UserPlus, Layers, Users, Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, LogOut, Trash2, UserMinus } from 'lucide-react';
+import { Building2, PlusCircle, Lock, Wrench, X, Search, UserPlus, Layers, Users, Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, LogOut, Trash2, UserMinus, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import { cn } from '../lib/utils';
 import { Room, RoomStatus, Guest, GuestStatus, InviteStatus } from '../types';
@@ -24,6 +24,14 @@ export default function HotelTracker() {
   const [selectedGuestIds, setSelectedGuestIds] = useState<string[]>([]);
   const [occupiedRoom, setOccupiedRoom] = useState<Room | null>(null);
   const [confirmDeleteRoomId, setConfirmDeleteRoomId] = useState<string | null>(null);
+  const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
+  const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+
+  const toggleHotel = (hotel: string) =>
+    setCollapsedHotels(prev => { const n = new Set(prev); n.has(hotel) ? n.delete(hotel) : n.add(hotel); return n; });
+
+  const toggleFloor = (key: string) =>
+    setCollapsedFloors(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -237,7 +245,7 @@ export default function HotelTracker() {
     }
   }
 
-  const hotels = Array.from(new Set(rooms.map(r => r.hotel)));
+  const hotels: string[] = Array.from(new Set(rooms.map(r => r.hotel)));
   const unassignedGuests = guests.filter(g => !g.roomId && g.status !== GuestStatus.CHECKED_OUT);
   const filteredGuests = unassignedGuests.filter(g => {
     if (!searchTerm) return true;
@@ -435,23 +443,56 @@ export default function HotelTracker() {
         hotels.map((hotel) => {
           const hotelRooms = rooms.filter(r => r.hotel === hotel);
           const floors = Array.from(new Set(hotelRooms.map(r => r.floor))).sort();
+          const hotelCollapsed = collapsedHotels.has(hotel);
+          const hotelOccupied = hotelRooms.filter(r => r.status === RoomStatus.OCCUPIED).length;
 
           return (
-            <section key={hotel} className="space-y-8">
-              <div className="flex items-center gap-4">
-                <Building2 className="text-secondary" size={28} />
-                <h2 className="text-2xl font-display font-bold text-primary uppercase tracking-[0.1em]">{hotel}</h2>
+            <section key={hotel} className="space-y-3">
+              {/* Hotel header — clickable */}
+              <div
+                className="flex items-center gap-3 cursor-pointer select-none group"
+                onClick={() => toggleHotel(hotel)}
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center shrink-0">
+                  <Building2 size={16} className="text-on-primary-container" />
+                </div>
+                <h2 className="text-lg font-display font-bold text-primary uppercase tracking-[0.1em]">{hotel}</h2>
                 <div className="flex-1 h-[1px] bg-gradient-to-r from-outline-variant to-transparent opacity-50" />
-                <Badge variant="secondary" className="px-3 py-1">{hotelRooms.length} Total Rooms</Badge>
+                <span className="text-[10px] font-bold text-on-surface-variant shrink-0">
+                  {hotelOccupied}/{hotelRooms.length} occupied
+                </span>
+                {hotelCollapsed
+                  ? <ChevronRight size={16} className="text-outline shrink-0 group-hover:text-primary transition-colors" />
+                  : <ChevronDown size={16} className="text-outline shrink-0 group-hover:text-primary transition-colors" />}
               </div>
-              
-              <div className="space-y-10 pl-4 border-l border-outline-variant/30">
-                {floors.map(floor => (
-                  <div key={floor} className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Layers size={16} className="text-on-surface-variant" />
-                      <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">{floor}</h3>
+
+              {!hotelCollapsed && (
+              <div className="space-y-2 pl-4 border-l border-outline-variant/30">
+                {floors.map(floor => {
+                  const floorKey = `${hotel}::${floor}`;
+                  const floorCollapsed = collapsedFloors.has(floorKey);
+                  const floorRooms = hotelRooms.filter(r => r.floor === floor);
+                  const floorOccupied = floorRooms.filter(r => r.status === RoomStatus.OCCUPIED).length;
+
+                  return (
+                  <div key={floor} className="space-y-3">
+                    {/* Floor header — clickable */}
+                    <div
+                      className="flex items-center gap-2 cursor-pointer select-none group py-1"
+                      onClick={() => toggleFloor(floorKey)}
+                    >
+                      <Layers size={13} className="text-on-surface-variant shrink-0" />
+                      <h3 className="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">{floor}</h3>
+                      <span className="text-[10px] text-outline">
+                        {floorOccupied}/{floorRooms.length} occupied
+                      </span>
+                      <div className="flex-1 h-[1px] bg-outline-variant/30" />
+                      {floorCollapsed
+                        ? <ChevronRight size={13} className="text-outline shrink-0 group-hover:text-primary transition-colors" />
+                        : <ChevronDown size={13} className="text-outline shrink-0 group-hover:text-primary transition-colors" />}
                     </div>
+
+                    {!floorCollapsed && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                       {hotelRooms.filter(r => r.floor === floor).map((room) => {
                         const roomGuests = guestsByRoom.get(room.id) || [];
@@ -561,9 +602,12 @@ export default function HotelTracker() {
                         );
                       })}
                     </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
+              )}
             </section>
           );
         })
