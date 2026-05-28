@@ -26,6 +26,45 @@ function formatDate(dt: string | undefined) {
   catch { return '—'; }
 }
 
+function parseSmartDate(s: string) {
+  const y = String(new Date().getFullYear());
+  if (!s) return `${y}-01-01`;
+  if (s.includes('-') && s.split('-').length === 3) return s;
+  const parts = s.split(/[./-]/);
+  const day = parts[0]; const month = parts[1]; const year = parts[2] || y;
+  if (!month) return `${y}-01-01`;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+function parseSmartTime(s: string, period: 'AM' | 'PM') {
+  if (!s) return '12:00';
+  const parts = s.split(/[.:]/);
+  let h = parseInt(parts[0], 10);
+  const m = parts[1] ? parseInt(parts[1], 10) : 0;
+  if (period === 'PM' && h < 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function isoToDateStr(iso: string | undefined) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${d.getMonth() + 1}`;
+}
+
+function isoToTimeStr(iso: string | undefined) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  let h = d.getHours(); const m = d.getMinutes();
+  if (h > 12) h -= 12; else if (h === 0) h = 12;
+  return `${h}.${String(m).padStart(2, '0')}`;
+}
+
+function isoToAmPm(iso: string | undefined): 'AM' | 'PM' {
+  if (!iso) return 'AM';
+  return new Date(iso).getHours() >= 12 ? 'PM' : 'AM';
+}
+
 function ArrivalIcon({ mode, size = 14 }: { mode: ArrivalMode; size?: number }) {
   const cls = 'text-secondary';
   if (mode === ArrivalMode.FLIGHT) return <Plane size={size} className={cls} />;
@@ -145,6 +184,17 @@ export default function GuestList() {
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
 
+  // Travel edit state
+  const [editShowTravel, setEditShowTravel] = useState(false);
+  const [editArrivalMode, setEditArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
+  const [editArrivalDateStr, setEditArrivalDateStr] = useState('');
+  const [editArrivalTimeStr, setEditArrivalTimeStr] = useState('');
+  const [editArrivalAmPm, setEditArrivalAmPm] = useState<'AM' | 'PM'>('AM');
+  const [editDepartureMode, setEditDepartureMode] = useState<ArrivalMode>(ArrivalMode.CAR);
+  const [editDepartureDateStr, setEditDepartureDateStr] = useState('');
+  const [editDepartureTimeStr, setEditDepartureTimeStr] = useState('');
+  const [editDepartureAmPm, setEditDepartureAmPm] = useState<'AM' | 'PM'>('PM');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importRows, setImportRows] = useState<ParsedRow[] | null>(null);
@@ -214,6 +264,20 @@ export default function GuestList() {
     return a.localeCompare(b);
   });
 
+  // Seed travel state whenever a different guest is opened for editing
+  useEffect(() => {
+    if (!editingGuest) { setEditShowTravel(false); return; }
+    setEditArrivalMode(editingGuest.arrivalMode ?? ArrivalMode.CAR);
+    setEditDepartureMode(editingGuest.departureMode ?? ArrivalMode.CAR);
+    setEditArrivalDateStr(isoToDateStr(editingGuest.arrivalDateTime));
+    setEditArrivalTimeStr(isoToTimeStr(editingGuest.arrivalDateTime));
+    setEditArrivalAmPm(isoToAmPm(editingGuest.arrivalDateTime));
+    setEditDepartureDateStr(isoToDateStr(editingGuest.departureDateTime));
+    setEditDepartureTimeStr(isoToTimeStr(editingGuest.departureDateTime));
+    setEditDepartureAmPm(isoToAmPm(editingGuest.departureDateTime));
+    setEditShowTravel(!!editingGuest.arrivalDateTime || !!editingGuest.departureDateTime);
+  }, [editingGuest?.id]);
+
   // Collapse all named groups on first load
   useEffect(() => {
     if (loading || initialCollapseSet.current) return;
@@ -268,19 +332,62 @@ export default function GuestList() {
     e.preventDefault();
     if (!editingGuest) return;
     const fd = new FormData(e.currentTarget);
-    const phone = (fd.get('phone') as string).trim();
-    const notes = (fd.get('notes') as string).trim();
+
+    // Build travel fields from controlled state + form sub-fields
+    const travelFields: Partial<Guest> = {};
+    if (editShowTravel && editArrivalDateStr) {
+      travelFields.arrivalDateTime = `${parseSmartDate(editArrivalDateStr)}T${parseSmartTime(editArrivalTimeStr, editArrivalAmPm)}:00`;
+      travelFields.arrivalMode = editArrivalMode;
+      if (editArrivalMode === ArrivalMode.TRAIN) {
+        travelFields.arrivalTrainName   = (fd.get('arrivalTrainName') as string)   || undefined;
+        travelFields.arrivalTrainNumber = (fd.get('arrivalTrainNumber') as string) || undefined;
+        travelFields.arrivalCoach       = (fd.get('arrivalCoach') as string)       || undefined;
+        travelFields.arrivalSeat        = (fd.get('arrivalSeat') as string)        || undefined;
+      } else if (editArrivalMode === ArrivalMode.FLIGHT) {
+        travelFields.arrivalFlightNumber = (fd.get('arrivalFlightNumber') as string) || undefined;
+      } else {
+        travelFields.travelDetails = (fd.get('travelDetails') as string) || undefined;
+      }
+    }
+    if (editShowTravel && editDepartureDateStr) {
+      travelFields.departureDateTime = `${parseSmartDate(editDepartureDateStr)}T${parseSmartTime(editDepartureTimeStr, editDepartureAmPm)}:00`;
+      travelFields.departureMode = editDepartureMode;
+      if (editDepartureMode === ArrivalMode.TRAIN) {
+        travelFields.departureTrainName   = (fd.get('departureTrainName') as string)   || undefined;
+        travelFields.departureTrainNumber = (fd.get('departureTrainNumber') as string) || undefined;
+        travelFields.departureCoach       = (fd.get('departureCoach') as string)       || undefined;
+        travelFields.departureSeat        = (fd.get('departureSeat') as string)        || undefined;
+      } else if (editDepartureMode === ArrivalMode.FLIGHT) {
+        travelFields.departureFlightNumber = (fd.get('departureFlightNumber') as string) || undefined;
+      } else {
+        travelFields.departureDetails = (fd.get('departureDetails') as string) || undefined;
+      }
+    }
+
     const updated: Guest = {
       ...editingGuest,
       name: (fd.get('name') as string).trim(),
-      phone: phone || undefined,
+      phone: (fd.get('phone') as string).trim() || undefined,
       inviteStatus: fd.get('inviteStatus') as InviteStatus,
       familySide: fd.get('familySide') as FamilySide,
-      notes: notes || undefined,
+      notes: (fd.get('notes') as string).trim() || undefined,
       isPrimaryContact: fd.get('isPrimaryContact') === 'on',
+      // Reset all travel fields then apply new values
+      arrivalMode: undefined, arrivalDateTime: undefined,
+      departureMode: undefined, departureDateTime: undefined,
+      travelDetails: undefined, departureDetails: undefined,
+      arrivalTrainName: undefined, arrivalTrainNumber: undefined,
+      arrivalCoach: undefined, arrivalSeat: undefined,
+      departureTrainName: undefined, departureTrainNumber: undefined,
+      departureCoach: undefined, departureSeat: undefined,
+      arrivalFlightNumber: undefined, departureFlightNumber: undefined,
+      ...travelFields,
     };
-    if (!updated.phone) delete updated.phone;
-    if (!updated.notes) delete updated.notes;
+    // Strip undefined so Firestore doesn't complain
+    (Object.keys(updated) as (keyof Guest)[]).forEach(k => {
+      if (updated[k] === undefined) delete updated[k];
+    });
+
     try {
       await setDoc(doc(db, 'guests', editingGuest.id), updated);
       setEditingGuest(null);
@@ -656,6 +763,144 @@ export default function GuestList() {
                     <span className="text-sm font-bold text-on-surface">Primary contact for group</span>
                   </label>
                 )}
+
+                {/* Travel Details */}
+                <div className="space-y-3 border-t border-outline-variant pt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Travel Itinerary</label>
+                    <button type="button" onClick={() => setEditShowTravel(v => !v)}
+                      className={cn('px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all',
+                        editShowTravel ? 'bg-secondary text-on-secondary border-secondary' : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary')}>
+                      {editShowTravel ? 'Hide' : '+ Add Travel'}
+                    </button>
+                  </div>
+
+                  {editShowTravel && (
+                    <div className="space-y-4">
+                      {/* Arrival */}
+                      <div className="bg-surface-container-low rounded-xl p-4 space-y-3 border border-outline-variant/60">
+                        <p className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5"><Plane size={11} />Arrival</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="col-span-2">
+                            <select value={editArrivalMode} onChange={e => setEditArrivalMode(e.target.value as ArrivalMode)}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none">
+                              <option value={ArrivalMode.CAR}>🚗 Car</option>
+                              <option value={ArrivalMode.BUS}>🚌 Bus</option>
+                              <option value={ArrivalMode.TRAIN}>🚆 Train</option>
+                              <option value={ArrivalMode.FLIGHT}>✈️ Flight</option>
+                            </select>
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Date (DD.MM)</p>
+                            <input value={editArrivalDateStr} onChange={e => setEditArrivalDateStr(e.target.value)} placeholder="e.g. 25.6"
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
+                            <div className="flex gap-1">
+                              <input value={editArrivalTimeStr} onChange={e => setEditArrivalTimeStr(e.target.value)} placeholder="10.30"
+                                className="flex-1 min-w-0 p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
+                                {(['AM', 'PM'] as const).map(p => (
+                                  <button key={p} type="button" onClick={() => setEditArrivalAmPm(p)}
+                                    className={cn('px-2 py-1 rounded-md text-[10px] font-bold transition-all', editArrivalAmPm === p ? 'bg-white shadow text-primary' : 'text-outline')}>{p}</button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {editArrivalMode === ArrivalMode.TRAIN && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {[['arrivalTrainName','Train Name',editingGuest.arrivalTrainName],['arrivalTrainNumber','Train #',editingGuest.arrivalTrainNumber],['arrivalCoach','Coach',editingGuest.arrivalCoach],['arrivalSeat','Seat(s)',editingGuest.arrivalSeat]].map(([n,l,v]) => (
+                              <div key={n as string}>
+                                <p className="text-[9px] font-bold text-outline uppercase mb-1">{l as string}</p>
+                                <input name={n as string} defaultValue={(v as string) ?? ''} className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {editArrivalMode === ArrivalMode.FLIGHT && (
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Flight Number</p>
+                            <input name="arrivalFlightNumber" defaultValue={editingGuest.arrivalFlightNumber ?? ''}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" placeholder="e.g. 6E-201" />
+                          </div>
+                        )}
+                        {(editArrivalMode === ArrivalMode.CAR || editArrivalMode === ArrivalMode.BUS) && (
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Details (optional)</p>
+                            <input name="travelDetails" defaultValue={editingGuest.travelDetails ?? ''}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" placeholder="Vehicle / driver info" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Departure */}
+                      <div className="bg-surface-container-low rounded-xl p-4 space-y-3 border border-outline-variant/60">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-1.5"><Plane size={11} className="rotate-90" />Departure</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="col-span-2">
+                            <select value={editDepartureMode} onChange={e => setEditDepartureMode(e.target.value as ArrivalMode)}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none">
+                              <option value={ArrivalMode.CAR}>🚗 Car</option>
+                              <option value={ArrivalMode.BUS}>🚌 Bus</option>
+                              <option value={ArrivalMode.TRAIN}>🚆 Train</option>
+                              <option value={ArrivalMode.FLIGHT}>✈️ Flight</option>
+                            </select>
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Date (DD.MM)</p>
+                            <input value={editDepartureDateStr} onChange={e => setEditDepartureDateStr(e.target.value)} placeholder="e.g. 28.6"
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
+                            <div className="flex gap-1">
+                              <input value={editDepartureTimeStr} onChange={e => setEditDepartureTimeStr(e.target.value)} placeholder="4.30"
+                                className="flex-1 min-w-0 p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
+                                {(['AM', 'PM'] as const).map(p => (
+                                  <button key={p} type="button" onClick={() => setEditDepartureAmPm(p)}
+                                    className={cn('px-2 py-1 rounded-md text-[10px] font-bold transition-all', editDepartureAmPm === p ? 'bg-white shadow text-primary' : 'text-outline')}>{p}</button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {editDepartureMode === ArrivalMode.TRAIN && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {[['departureTrainName','Train Name',editingGuest.departureTrainName],['departureTrainNumber','Train #',editingGuest.departureTrainNumber],['departureCoach','Coach',editingGuest.departureCoach],['departureSeat','Seat(s)',editingGuest.departureSeat]].map(([n,l,v]) => (
+                              <div key={n as string}>
+                                <p className="text-[9px] font-bold text-outline uppercase mb-1">{l as string}</p>
+                                <input name={n as string} defaultValue={(v as string) ?? ''} className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {editDepartureMode === ArrivalMode.FLIGHT && (
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Flight Number</p>
+                            <input name="departureFlightNumber" defaultValue={editingGuest.departureFlightNumber ?? ''}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" placeholder="e.g. AI-101" />
+                          </div>
+                        )}
+                        {(editDepartureMode === ArrivalMode.CAR || editDepartureMode === ArrivalMode.BUS) && (
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Details (optional)</p>
+                            <input name="departureDetails" defaultValue={editingGuest.departureDetails ?? ''}
+                              className="w-full p-2.5 border border-outline-variant rounded-lg bg-white text-sm focus:border-secondary outline-none" placeholder="Drop-off / vehicle info" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Clear travel */}
+                      <button type="button" onClick={() => { setEditShowTravel(false); setEditArrivalDateStr(''); setEditDepartureDateStr(''); }}
+                        className="text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors">
+                        × Clear travel info
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="px-6 pb-6 flex justify-end gap-3 border-t border-outline-variant pt-4">
