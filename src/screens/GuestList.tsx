@@ -460,6 +460,31 @@ export default function GuestList() {
     }
   };
 
+  const formatTravelDetail = (g: Guest, direction: 'arrival' | 'departure') => {
+    const isArr = direction === 'arrival';
+    const dt = isArr ? g.arrivalDateTime : g.departureDateTime;
+    if (!dt) return '';
+    const mode = isArr ? g.arrivalMode : g.departureMode;
+    const date = formatDate(dt);
+    const time = new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    let detail = `${date} ${time} · ${mode ?? 'Car'}`;
+    if (mode === ArrivalMode.TRAIN) {
+      const name = isArr ? g.arrivalTrainName : g.departureTrainName;
+      const num = isArr ? g.arrivalTrainNumber : g.departureTrainNumber;
+      const coach = isArr ? g.arrivalCoach : g.departureCoach;
+      const seat = isArr ? g.arrivalSeat : g.departureSeat;
+      if (name) detail += ` | ${name}${num ? ` (${num})` : ''}`;
+      if (coach) detail += ` ${coach}${seat ? `/${seat}` : ''}`;
+    } else if (mode === ArrivalMode.FLIGHT) {
+      const flt = isArr ? g.arrivalFlightNumber : g.departureFlightNumber;
+      if (flt) detail += ` | ${flt}`;
+    } else {
+      const notes = isArr ? g.travelDetails : g.departureDetails;
+      if (notes) detail += ` | ${notes}`;
+    }
+    return detail;
+  };
+
   const handleExportPdf = () => {
     exportToPdf({
       title: 'Guest List',
@@ -471,14 +496,14 @@ export default function GuestList() {
         { label: 'Bride / Groom', value: `${filtered.filter(g => g.familySide === FamilySide.BRIDE).length} / ${filtered.filter(g => g.familySide === FamilySide.GROOM).length}` },
       ],
       columns: [
-        { header: '#', width: '30px', align: 'center' },
-        { header: 'Name' },
-        { header: 'Group' },
-        { header: 'Side', width: '70px' },
-        { header: 'Invite', width: '80px' },
-        { header: 'Travel', width: '80px' },
-        { header: 'Arrival', width: '90px' },
-        { header: 'Phone', width: '120px' },
+        { header: '#', width: '25px', align: 'center' },
+        { header: 'Name', width: '130px' },
+        { header: 'Group', width: '110px' },
+        { header: 'Side', width: '50px' },
+        { header: 'Invite', width: '70px' },
+        { header: 'Arrival Details' },
+        { header: 'Departure Details' },
+        { header: 'Phone', width: '100px' },
       ],
       rows: filtered.map((g, i) => [
         String(i + 1),
@@ -486,8 +511,8 @@ export default function GuestList() {
         g.groupName || '—',
         g.familySide === FamilySide.BRIDE ? 'Bride' : 'Groom',
         g.inviteStatus ?? InviteStatus.PENDING,
-        g.arrivalDateTime ? 'Yes' : 'No',
-        g.arrivalDateTime ? `${formatDate(g.arrivalDateTime)} · ${g.arrivalMode ?? ''}` : '—',
+        formatTravelDetail(g, 'arrival') || '—',
+        formatTravelDetail(g, 'departure') || '—',
         g.phone || '—',
       ]),
       orientation: 'landscape',
@@ -779,26 +804,47 @@ export default function GuestList() {
                             <InviteStatusBadge status={invStatus} />
                           </div>
 
-                          {/* Travel indicator — hidden on mobile to keep name readable */}
-                          <div className="shrink-0 w-20 text-center hidden sm:block">
+                          {/* Travel details — hidden on mobile */}
+                          <div className="shrink-0 hidden sm:block w-48">
                             {guest.arrivalDateTime ? (
-                              <span className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-600">
-                                <CheckCircle2 size={11} />Travel
-                              </span>
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <ArrivalIcon mode={guest.arrivalMode || ArrivalMode.CAR} size={12} />
+                                  <span className="text-xs font-bold text-on-surface">Arr {formatDate(guest.arrivalDateTime)}</span>
+                                  <span className="text-[9px] text-outline">
+                                    {new Date(guest.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                  </span>
+                                </div>
+                                {guest.arrivalMode === ArrivalMode.TRAIN && guest.arrivalTrainName && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">{guest.arrivalTrainName}{guest.arrivalTrainNumber ? ` (${guest.arrivalTrainNumber})` : ''}{guest.arrivalCoach ? ` · ${guest.arrivalCoach}${guest.arrivalSeat ? `/${guest.arrivalSeat}` : ''}` : ''}</p>
+                                )}
+                                {guest.arrivalMode === ArrivalMode.FLIGHT && guest.arrivalFlightNumber && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">Flight {guest.arrivalFlightNumber}</p>
+                                )}
+                                {guest.arrivalMode !== ArrivalMode.TRAIN && guest.arrivalMode !== ArrivalMode.FLIGHT && guest.travelDetails && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">{guest.travelDetails}</p>
+                                )}
+                                {guest.departureDateTime && (
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <ArrivalIcon mode={guest.departureMode || ArrivalMode.CAR} size={12} />
+                                    <span className="text-xs font-bold text-on-surface">Dep {formatDate(guest.departureDateTime)}</span>
+                                    <span className="text-[9px] text-outline">
+                                      {new Date(guest.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    </span>
+                                  </div>
+                                )}
+                                {guest.departureDateTime && guest.departureMode === ArrivalMode.TRAIN && guest.departureTrainName && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">{guest.departureTrainName}{guest.departureTrainNumber ? ` (${guest.departureTrainNumber})` : ''}{guest.departureCoach ? ` · ${guest.departureCoach}${guest.departureSeat ? `/${guest.departureSeat}` : ''}` : ''}</p>
+                                )}
+                                {guest.departureDateTime && guest.departureMode === ArrivalMode.FLIGHT && guest.departureFlightNumber && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">Flight {guest.departureFlightNumber}</p>
+                                )}
+                                {guest.departureDateTime && guest.departureMode !== ArrivalMode.TRAIN && guest.departureMode !== ArrivalMode.FLIGHT && guest.departureDetails && (
+                                  <p className="text-[9px] text-on-surface-variant truncate pl-5">{guest.departureDetails}</p>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-[10px] text-outline/40">No travel</span>
-                            )}
-                          </div>
-
-                          {/* Arrival date + mode */}
-                          <div className="shrink-0 hidden sm:flex items-center gap-1.5 w-28">
-                            {guest.arrivalDateTime ? (
-                              <>
-                                <ArrivalIcon mode={guest.arrivalMode || ArrivalMode.CAR} size={12} />
-                                <span className="text-xs font-bold text-on-surface">{formatDate(guest.arrivalDateTime)}</span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-outline/40">—</span>
                             )}
                           </div>
 
