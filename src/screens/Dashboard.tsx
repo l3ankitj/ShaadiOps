@@ -4,15 +4,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, Calendar, PlaneLanding, CalendarCheck, Plane, Clock, MapPin, ChevronDown, Plus, X } from 'lucide-react';
+import { Users, UserCheck, Calendar, PlaneLanding, CalendarCheck, Plane, Clock, MapPin, ChevronDown, Plus, X, FileDown } from 'lucide-react';
 import { Card, Button } from '../components/UIComponents';
 import { cn } from '../lib/utils';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Guest, Room, GuestStatus, RoomStatus, EventConfig, ItineraryItem } from '../types';
+import { Guest, GuestStatus, EventConfig, ItineraryItem } from '../types';
+import { exportToPdf } from '../lib/exportPdf';
 
 export default function Dashboard() {
-  const [counts, setCounts] = useState({ guests: 0, checkins: 0, emptyRooms: 0 });
+  const [counts, setCounts] = useState({ guests: 0, checkins: 0 });
   const [eventConfig, setEventConfig] = useState<EventConfig | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
@@ -29,23 +30,17 @@ export default function Dashboard() {
     const unsubGuests = onSnapshot(collection(db, 'guests'), (snap) => {
       const gList = snap.docs.map(d => d.data() as Guest);
       setGuests(gList);
-      setCounts(prev => ({
-        ...prev,
+      setCounts({
         guests: gList.length,
         checkins: gList.filter(g => g.status === GuestStatus.CHECKED_IN).length,
-      }));
+      });
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'guests'));
-
-    const unsubRooms = onSnapshot(collection(db, 'rooms'), (snap) => {
-      const rooms = snap.docs.map(d => d.data() as Room);
-      setCounts(prev => ({ ...prev, emptyRooms: rooms.filter(r => r.status === RoomStatus.EMPTY).length }));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'rooms'));
 
     const unsubItinerary = onSnapshot(collection(db, 'itinerary'), (snap) => {
       setItinerary(snap.docs.map(d => d.data() as ItineraryItem).sort((a, b) => a.startTime.localeCompare(b.startTime)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'itinerary'));
 
-    return () => { unsubConfig(); unsubGuests(); unsubRooms(); unsubItinerary(); };
+    return () => { unsubConfig(); unsubGuests(); unsubItinerary(); };
   }, []);
 
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -74,6 +69,59 @@ export default function Dashboard() {
   const filteredArrivals = guests.filter(g => g.arrivalDateTime?.startsWith(selectedDate));
   const filteredDepartures = guests.filter(g => g.departureDateTime?.startsWith(selectedDate));
   const filteredItinerary = itinerary.filter(item => item.startTime.startsWith(selectedDate));
+
+  const dateLabel = isToday ? 'Today' : new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const handleExportPdf = () => {
+    const scheduleRows = filteredItinerary.map((item, i) => [
+      String(i + 1),
+      new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      item.endTime ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      item.title,
+      item.venue,
+      item.category ?? '',
+    ]);
+    const arrivalRows = filteredArrivals.map((g, i) => [
+      String(i + 1),
+      g.name,
+      g.groupName ?? '',
+      g.arrivalDateTime ? new Date(g.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      g.arrivalMode ?? '',
+    ]);
+    const departureRows = filteredDepartures.map((g, i) => [
+      String(i + 1),
+      g.name,
+      g.groupName ?? '',
+      g.departureDateTime ? new Date(g.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      g.departureMode ?? '',
+    ]);
+
+    const allRows = [
+      ...scheduleRows.map(r => ['SCHEDULE', ...r]),
+      ...arrivalRows.map(r => ['ARRIVALS', ...r]),
+      ...departureRows.map(r => ['DEPARTURES', ...r]),
+    ];
+
+    exportToPdf({
+      title: `Day Brief — ${dateLabel}`,
+      subtitle: `${filteredItinerary.length} events · ${filteredArrivals.length} arrivals · ${filteredDepartures.length} departures`,
+      stats: [
+        { label: 'Events', value: filteredItinerary.length },
+        { label: 'Arrivals', value: filteredArrivals.length },
+        { label: 'Departures', value: filteredDepartures.length },
+      ],
+      columns: [
+        { header: 'Section', width: '80px' },
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Time' },
+        { header: 'End / Group' },
+        { header: 'Title / Name' },
+        { header: 'Venue / Mode' },
+        { header: 'Category' },
+      ],
+      rows: allRows,
+    });
+  };
 
   return (
     <div className="space-y-8 pb-20">
@@ -121,10 +169,18 @@ export default function Dashboard() {
             </button>
           )}
         </div>
-        <Button onClick={() => setIsAddingEvent(true)} className="rounded-full flex items-center gap-2 shadow-sm">
-          <Plus size={16} />
-          Add Event
-        </Button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleExportPdf}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold border border-primary text-primary rounded-full hover:bg-primary/5 transition-all"
+          >
+            <FileDown size={14} /> Export PDF
+          </button>
+          <Button onClick={() => setIsAddingEvent(true)} className="rounded-full flex items-center gap-2 shadow-sm">
+            <Plus size={16} />
+            Add Event
+          </Button>
+        </div>
       </div>
 
       {/* Day stats */}
@@ -283,7 +339,7 @@ export default function Dashboard() {
               <div>
                 <h3 className="text-xl font-display font-bold text-primary">New Event</h3>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-                  {new Date(selectedDate).toLocaleDateString([], { day: 'numeric', month: 'long' })}
+                  {new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'long' })}
                 </p>
               </div>
               <button onClick={() => setIsAddingEvent(false)} className="p-2 hover:bg-surface-container rounded-full">

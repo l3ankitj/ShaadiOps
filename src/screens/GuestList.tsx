@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, Search, X, Plane, Car, Train, Bus,
   Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2,
-  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2, Pencil,
+  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2, Pencil, FileDown,
 } from 'lucide-react';
 import { Card, StatCard, Badge, Button } from '../components/UIComponents';
 import { collection, onSnapshot, orderBy, query, setDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import AddGroupModal from '../components/AddGroupModal';
 import EditGroupModal from '../components/EditGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { exportToPdf } from '../lib/exportPdf';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -405,13 +406,22 @@ export default function GuestList() {
     // If a group member's travel is individually edited, flag it as custom
     const travelChanged = editShowTravel && (editArrivalDateStr || editDepartureDateStr);
     const newGroupName = editGroupName.trim() || undefined;
+    const rawInvite = fd.get('inviteStatus') as string;
+    const safeInviteStatus = Object.values(InviteStatus).includes(rawInvite as InviteStatus)
+      ? (rawInvite as InviteStatus)
+      : InviteStatus.PENDING;
+    const rawSide = fd.get('familySide') as string;
+    const safeFamilySide = Object.values(FamilySide).includes(rawSide as FamilySide)
+      ? (rawSide as FamilySide)
+      : editingGuest.familySide;
+
     const updated: Guest = {
       ...editingGuest,
       name: (fd.get('name') as string).trim(),
       phone: (fd.get('phone') as string).trim() || undefined,
       groupName: newGroupName,
-      inviteStatus: fd.get('inviteStatus') as InviteStatus,
-      familySide: fd.get('familySide') as FamilySide,
+      inviteStatus: safeInviteStatus,
+      familySide: safeFamilySide,
       notes: (fd.get('notes') as string).trim() || undefined,
       isPrimaryContact: newGroupName ? (fd.get('isPrimaryContact') === 'on') : undefined,
       // Mark as custom travel if this group member's travel was individually set
@@ -450,6 +460,40 @@ export default function GuestList() {
     }
   };
 
+  const handleExportPdf = () => {
+    exportToPdf({
+      title: 'Guest List',
+      subtitle: filter === 'all' ? 'All Guests' : `Filter: ${filter}`,
+      stats: [
+        { label: 'Total', value: filtered.length },
+        { label: 'Confirmed', value: filtered.filter(g => g.inviteStatus === InviteStatus.CONFIRMED).length },
+        { label: 'Travel Set', value: filtered.filter(g => !!g.arrivalDateTime).length },
+        { label: 'Bride / Groom', value: `${filtered.filter(g => g.familySide === FamilySide.BRIDE).length} / ${filtered.filter(g => g.familySide === FamilySide.GROOM).length}` },
+      ],
+      columns: [
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Name' },
+        { header: 'Group' },
+        { header: 'Side', width: '70px' },
+        { header: 'Invite', width: '80px' },
+        { header: 'Travel', width: '80px' },
+        { header: 'Arrival', width: '90px' },
+        { header: 'Phone', width: '120px' },
+      ],
+      rows: filtered.map((g, i) => [
+        String(i + 1),
+        g.name,
+        g.groupName || '—',
+        g.familySide === FamilySide.BRIDE ? 'Bride' : 'Groom',
+        g.inviteStatus ?? InviteStatus.PENDING,
+        g.arrivalDateTime ? 'Yes' : 'No',
+        g.arrivalDateTime ? `${formatDate(g.arrivalDateTime)} · ${g.arrivalMode ?? ''}` : '—',
+        g.phone || '—',
+      ]),
+      orientation: 'landscape',
+    });
+  };
+
   const chips: { label: string; value: FilterChip }[] = [
     { label: 'All', value: 'all' },
     { label: 'Confirmed', value: InviteStatus.CONFIRMED },
@@ -478,6 +522,10 @@ export default function GuestList() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={handleExportPdf}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border-2 border-primary text-primary hover:bg-primary-container transition-all font-bold text-xs uppercase tracking-widest">
+            <FileDown size={15} /><span className="hidden sm:inline">Export PDF</span>
+          </button>
           <button onClick={downloadGuestTemplate}
             className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border-2 border-secondary text-secondary hover:bg-secondary-container transition-all font-bold text-xs uppercase tracking-widest">
             <Download size={15} /><span className="hidden sm:inline">Excel Template</span>
@@ -508,7 +556,7 @@ export default function GuestList() {
       {/* Stats — click to filter */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Total People" value={totalPeople} icon={Users}
-          onClick={() => setFilter(filter === 'all' ? 'all' : 'all')}
+          onClick={() => setFilter('all')}
           active={filter === 'all'} />
         <StatCard title="Confirmed Coming" value={confirmedCount} icon={CheckCircle2} colorClass="text-emerald-600"
           onClick={() => setFilter(filter === InviteStatus.CONFIRMED ? 'all' : InviteStatus.CONFIRMED)}
@@ -595,12 +643,15 @@ export default function GuestList() {
                 {/* Group header (only for named groups) */}
                 {isNamedGroup && (
                   <div className="flex items-center px-4 py-3.5 bg-surface-container/40 hover:bg-surface-container/70 transition-colors gap-3">
-                    {/* Single-line clickable area */}
-                    <div className="flex-1 min-w-0 cursor-pointer flex items-center gap-3 flex-wrap" onClick={() => toggleGroup(groupKey)}>
-                      <span className="font-bold text-[19px] text-on-surface leading-tight shrink-0">{groupKey}</span>
+                    {/* Column-aligned clickable area */}
+                    <div className="flex-1 min-w-0 cursor-pointer flex items-center" onClick={() => toggleGroup(groupKey)}>
 
+                      {/* Name — flex-1 */}
+                      <span className="font-bold text-[19px] text-on-surface leading-tight truncate flex-1 min-w-0 pr-4">{groupKey}</span>
+
+                      {/* Side — fixed 88px */}
                       <span className={cn(
-                        'text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0',
+                        'w-[88px] shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide text-center',
                         isBride
                           ? 'bg-pink-50 text-pink-600 border border-pink-200'
                           : 'bg-secondary/10 text-secondary border border-secondary/30'
@@ -608,37 +659,52 @@ export default function GuestList() {
                         {isBride ? 'Bride' : 'Groom'}
                       </span>
 
-                      <span className="flex items-center gap-1 text-sm text-outline">
+                      {/* People — fixed 96px */}
+                      <span className="w-24 shrink-0 flex items-center gap-1 text-sm text-outline">
                         <Users2 size={13} className="shrink-0" />
                         {members.length} {members.length === 1 ? 'person' : 'people'}
                       </span>
 
-                      {allConfirmed ? (
-                        <span className="flex items-center gap-1 text-sm text-emerald-600 font-medium">
-                          <CheckCircle2 size={13} className="shrink-0" />All confirmed
-                        </span>
-                      ) : confirmedInGroup > 0 ? (
-                        <span className="flex items-center gap-1 text-sm text-emerald-600 font-medium">
-                          <CheckCircle2 size={13} className="shrink-0" />{confirmedInGroup}/{members.length} confirmed
-                        </span>
-                      ) : null}
+                      {/* Confirmed — fixed 152px */}
+                      <span className="w-[152px] shrink-0 text-sm font-medium">
+                        {allConfirmed ? (
+                          <span className="flex items-center gap-1 text-emerald-600">
+                            <CheckCircle2 size={13} />All confirmed
+                          </span>
+                        ) : confirmedInGroup > 0 ? (
+                          <span className="flex items-center gap-1 text-emerald-600">
+                            <CheckCircle2 size={13} />{confirmedInGroup}/{members.length} confirmed
+                          </span>
+                        ) : declinedInGroup > 0 ? (
+                          <span className="text-red-500">{declinedInGroup} declined</span>
+                        ) : (
+                          <span className="text-outline/40">—</span>
+                        )}
+                      </span>
 
-                      {declinedInGroup > 0 && (
-                        <span className="text-sm text-red-500 font-medium">{declinedInGroup} declined</span>
-                      )}
+                      {/* Travel — fixed 128px, hidden on small screens */}
+                      <span className="w-32 shrink-0 text-sm font-medium hidden sm:flex items-center gap-1">
+                        {travelInGroup > 0 ? (
+                          <span className="flex items-center gap-1 text-secondary">
+                            <Plane size={13} />
+                            {travelInGroup === members.length ? 'All travel ✓' : `${travelInGroup} travel`}
+                          </span>
+                        ) : (
+                          <span className="text-outline/40">—</span>
+                        )}
+                      </span>
 
-                      {travelInGroup > 0 && (
-                        <span className="flex items-center gap-1 text-sm text-secondary font-medium">
-                          <Plane size={13} className="shrink-0" />
-                          {travelInGroup === members.length ? 'All travel ✓' : `${travelInGroup} travel`}
-                        </span>
-                      )}
+                      {/* Hotel — fixed 104px, hidden on medium and below */}
+                      <span className="w-[104px] shrink-0 text-sm font-medium hidden lg:flex items-center gap-1">
+                        {checkedInGroup > 0 ? (
+                          <span className="flex items-center gap-1 text-primary">
+                            <BedDouble size={13} />{checkedInGroup} in hotel
+                          </span>
+                        ) : (
+                          <span className="text-outline/40">—</span>
+                        )}
+                      </span>
 
-                      {checkedInGroup > 0 && (
-                        <span className="flex items-center gap-1 text-sm text-primary font-medium">
-                          <BedDouble size={13} className="shrink-0" />{checkedInGroup} in hotel
-                        </span>
-                      )}
                     </div>
 
                     {/* Edit group button */}
@@ -698,9 +764,6 @@ export default function GuestList() {
                               <span className="inline-flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/8 px-1.5 py-0.5 rounded mt-0.5">
                                 <BedDouble size={9} />{guest.hotelName ? `${guest.hotelName} · ` : ''}Room {guest.roomNumber}
                               </span>
-                            )}
-                            {!isNamedGroup && guest.groupName === undefined && guest.familySide && (
-                              <span className="hidden" />
                             )}
                           </div>
 

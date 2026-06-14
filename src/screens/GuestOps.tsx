@@ -8,7 +8,7 @@ import {
   Search, Calendar, UserPlus, ChevronRight, X,
   Train, Car, PlaneLanding, Plane, AlertTriangle,
   CheckCircle2, Bus, ChevronDown, ChevronUp, ArrowUpDown,
-  Users2, StickyNote, LogOut, Trash2, Building2,
+  Users2, StickyNote, LogOut, Trash2, Building2, FileDown,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
@@ -20,6 +20,7 @@ import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../ty
 import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, deleteField, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useIsReadOnly } from '../contexts/AccessContext';
+import { exportToPdf } from '../lib/exportPdf';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,9 @@ export default function GuestOps() {
       } else {
         await updateDoc(doc(db, 'guests', guestId), { status: newStatus });
       }
-      if (selectedGuest?.id === guestId) setSelectedGuest({ ...selectedGuest, status: newStatus });
+      if (selectedGuest?.id === guestId) {
+        setSelectedGuest(prev => prev ? { ...prev, status: newStatus } : null);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${guestId}`);
     }
@@ -203,7 +206,9 @@ export default function GuestOps() {
   const handleUpdateInviteStatus = async (guestId: string, newStatus: InviteStatus) => {
     try {
       await updateDoc(doc(db, 'guests', guestId), { inviteStatus: newStatus });
-      if (selectedGuest?.id === guestId) setSelectedGuest({ ...selectedGuest, inviteStatus: newStatus });
+      if (selectedGuest?.id === guestId) {
+        setSelectedGuest(prev => prev ? { ...prev, inviteStatus: newStatus } : null);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${guestId}`);
     }
@@ -295,30 +300,30 @@ export default function GuestOps() {
     const id = `G${Date.now()}`;
     const groupName = formGroupName.trim();
 
-    let travelFields: Partial<Guest> = {};
+    const travelFields: Partial<Guest> = {};
     if (showTravelSection) {
-      const arrivalDate = parseSmartDate(arrivalDateStr);
-      const arrivalTime = parseSmartTime(arrivalTimeStr, arrivalAmPm);
-      const departureDate = parseSmartDate(departureDateStr);
-      const departureTime = parseSmartTime(departureTimeStr, departureAmPm);
-      travelFields = {
-        arrivalMode: formArrivalMode,
-        departureMode: formDepartureMode,
-        arrivalDateTime: `${arrivalDate}T${arrivalTime}:00`,
-        departureDateTime: `${departureDate}T${departureTime}:00`,
-        travelDetails: (formData.get('arrivalDetails') as string) || undefined,
-        departureDetails: (formData.get('departureDetails') as string) || undefined,
-        arrivalTrainName: (formData.get('arrivalTrainName') as string) || undefined,
-        arrivalTrainNumber: (formData.get('arrivalTrainNumber') as string) || undefined,
-        arrivalCoach: (formData.get('arrivalCoach') as string) || undefined,
-        arrivalSeat: (formData.get('arrivalSeat') as string) || undefined,
-        departureTrainName: (formData.get('departureTrainName') as string) || undefined,
-        departureTrainNumber: (formData.get('departureTrainNumber') as string) || undefined,
-        departureCoach: (formData.get('departureCoach') as string) || undefined,
-        departureSeat: (formData.get('departureSeat') as string) || undefined,
-        arrivalFlightNumber: (formData.get('arrivalFlightNumber') as string) || undefined,
-        departureFlightNumber: (formData.get('departureFlightNumber') as string) || undefined,
-      };
+      // Only write arrival travel if an arrival date was actually entered
+      if (arrivalDateStr) {
+        travelFields.arrivalMode = formArrivalMode;
+        travelFields.arrivalDateTime = `${parseSmartDate(arrivalDateStr)}T${parseSmartTime(arrivalTimeStr, arrivalAmPm)}:00`;
+        travelFields.travelDetails = (formData.get('arrivalDetails') as string) || undefined;
+        travelFields.arrivalTrainName = (formData.get('arrivalTrainName') as string) || undefined;
+        travelFields.arrivalTrainNumber = (formData.get('arrivalTrainNumber') as string) || undefined;
+        travelFields.arrivalCoach = (formData.get('arrivalCoach') as string) || undefined;
+        travelFields.arrivalSeat = (formData.get('arrivalSeat') as string) || undefined;
+        travelFields.arrivalFlightNumber = (formData.get('arrivalFlightNumber') as string) || undefined;
+      }
+      // Only write departure travel if a departure date was actually entered
+      if (departureDateStr) {
+        travelFields.departureMode = formDepartureMode;
+        travelFields.departureDateTime = `${parseSmartDate(departureDateStr)}T${parseSmartTime(departureTimeStr, departureAmPm)}:00`;
+        travelFields.departureDetails = (formData.get('departureDetails') as string) || undefined;
+        travelFields.departureTrainName = (formData.get('departureTrainName') as string) || undefined;
+        travelFields.departureTrainNumber = (formData.get('departureTrainNumber') as string) || undefined;
+        travelFields.departureCoach = (formData.get('departureCoach') as string) || undefined;
+        travelFields.departureSeat = (formData.get('departureSeat') as string) || undefined;
+        travelFields.departureFlightNumber = (formData.get('departureFlightNumber') as string) || undefined;
+      }
     }
 
     const newGuest: Guest = {
@@ -361,6 +366,51 @@ export default function GuestOps() {
       (guest.phone || '').includes(s) ||
       (guest.groupName || '').toLowerCase().includes(s);
   });
+
+  const handleExportPdf = () => {
+    const data = [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case 'name': cmp = a.name.localeCompare(b.name); break;
+        case 'familySide': cmp = a.familySide.localeCompare(b.familySide); break;
+        case 'inviteStatus': cmp = (a.inviteStatus ?? InviteStatus.PENDING).localeCompare(b.inviteStatus ?? InviteStatus.PENDING); break;
+        case 'arrival': cmp = (a.arrivalDateTime ?? '').localeCompare(b.arrivalDateTime ?? ''); break;
+        case 'status': cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    exportToPdf({
+      title: 'Guest Operations',
+      subtitle: filterArrivingToday ? "Today's Arrivals" : 'All Guests',
+      stats: [
+        { label: 'Total', value: data.length },
+        { label: 'Confirmed', value: data.filter(g => g.inviteStatus === InviteStatus.CONFIRMED).length },
+        { label: 'Checked In', value: data.filter(g => g.status === GuestStatus.CHECKED_IN).length },
+        { label: 'Picked Up', value: data.filter(g => g.status === GuestStatus.PICKED_UP).length },
+      ],
+      columns: [
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Name' },
+        { header: 'Group' },
+        { header: 'Side', width: '70px' },
+        { header: 'Invite', width: '80px' },
+        { header: 'Arrival', width: '100px' },
+        { header: 'Hotel Status', width: '90px' },
+        { header: 'Phone', width: '120px' },
+      ],
+      rows: data.map((g, i) => [
+        String(i + 1),
+        g.name,
+        g.groupName || '—',
+        g.familySide === FamilySide.BRIDE ? 'Bride' : 'Groom',
+        g.inviteStatus ?? InviteStatus.PENDING,
+        g.arrivalDateTime ? `${formatDisplayDate(g.arrivalDateTime)} ${formatDisplayTime(g.arrivalDateTime)}` : '—',
+        g.status,
+        g.phone || '—',
+      ]),
+      orientation: 'landscape',
+    });
+  };
 
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
@@ -406,6 +456,14 @@ export default function GuestOps() {
               <span className="text-xs font-bold uppercase tracking-wider">
                 {filterArrivingToday ? "Today's Arrivals" : 'Arriving Today'}
               </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className="rounded-full flex items-center gap-2 border border-outline-variant text-outline h-12 px-6 transition-all hover:border-primary hover:text-primary"
+              onClick={handleExportPdf}
+            >
+              <FileDown size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">Export PDF</span>
             </Button>
           </div>
         </div>
@@ -484,7 +542,7 @@ export default function GuestOps() {
                         )}
                         {guest.arrivalDateTime && (
                           <span className="flex items-center gap-0.5 text-[9px] text-outline">
-                            <ModeIcon mode={guest.arrivalMode!} size={10} />
+                            <ModeIcon mode={guest.arrivalMode ?? ArrivalMode.CAR} size={10} />
                             {formatDisplayDate(guest.arrivalDateTime)}
                           </span>
                         )}
@@ -603,7 +661,7 @@ export default function GuestOps() {
                       <td className="px-6 py-4 cursor-pointer" onClick={() => setSelectedGuest(guest)}>
                         {guest.arrivalDateTime ? (
                           <div className="flex items-center gap-1.5">
-                            <ModeIcon mode={guest.arrivalMode!} size={13} />
+                            <ModeIcon mode={guest.arrivalMode ?? ArrivalMode.CAR} size={13} />
                             <span className="text-xs font-bold">{formatDisplayDate(guest.arrivalDateTime)}</span>
                             <span className="text-[10px] text-outline">{formatDisplayTime(guest.arrivalDateTime)}</span>
                           </div>

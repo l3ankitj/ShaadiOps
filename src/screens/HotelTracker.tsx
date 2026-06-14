@@ -4,13 +4,14 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, PlusCircle, Lock, Wrench, X, Search, UserPlus, Layers, Users, Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, LogOut, Trash2, UserMinus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Building2, PlusCircle, Lock, Wrench, X, Search, UserPlus, Layers, Users, Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, LogOut, Trash2, UserMinus, ChevronDown, ChevronRight, FileDown } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import { cn } from '../lib/utils';
 import { Room, RoomStatus, Guest, GuestStatus, InviteStatus } from '../types';
 import { collection, onSnapshot, doc, setDoc, writeBatch, deleteField, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useIsReadOnly } from '../contexts/AccessContext';
+import { exportToPdf } from '../lib/exportPdf';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import { downloadRoomTemplate, parseRoomExcel, ParsedRoomRow } from '../lib/roomExcel';
 
@@ -27,6 +28,7 @@ export default function HotelTracker() {
   const [confirmDeleteRoomId, setConfirmDeleteRoomId] = useState<string | null>(null);
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
   const [collapsedFloors, setCollapsedFloors] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<RoomStatus | 'all'>('all');
   const initialCollapsed = useRef(false);
 
   // Collapse all hotels and floors on first load
@@ -266,7 +268,48 @@ export default function HotelTracker() {
     }
   }
 
-  const hotels: string[] = Array.from(new Set(rooms.map(r => r.hotel)));
+  const filteredRooms = statusFilter === 'all' ? rooms : rooms.filter(r => r.status === statusFilter);
+
+  const handleExportPdf = () => {
+    exportToPdf({
+      title: 'Hotel Room Report',
+      subtitle: statusFilter === 'all' ? 'All Rooms' : `Filter: ${statusFilter}`,
+      stats: [
+        { label: 'Total Rooms', value: filteredRooms.length },
+        { label: 'Occupied', value: filteredRooms.filter(r => r.status === RoomStatus.OCCUPIED).length },
+        { label: 'Empty', value: filteredRooms.filter(r => r.status === RoomStatus.EMPTY).length },
+        { label: 'Guests Assigned', value: guests.filter(g => g.roomId).length },
+      ],
+      columns: [
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Hotel' },
+        { header: 'Room #', width: '70px' },
+        { header: 'Floor', width: '80px' },
+        { header: 'Category', width: '80px' },
+        { header: 'Capacity', width: '60px', align: 'center' },
+        { header: 'Status', width: '80px' },
+        { header: 'Guests' },
+      ],
+      rows: filteredRooms
+        .sort((a, b) => a.hotel.localeCompare(b.hotel) || a.number.localeCompare(b.number))
+        .map((r, i) => {
+          const rg = guestsByRoom.get(r.id) || [];
+          return [
+            String(i + 1),
+            r.hotel,
+            r.number,
+            r.floor,
+            r.category,
+            String(r.capacity),
+            r.status,
+            rg.length > 0 ? rg.map(g => g.name).join(', ') : '—',
+          ];
+        }),
+      orientation: 'landscape',
+    });
+  };
+
+  const hotels: string[] = Array.from(new Set(filteredRooms.map(r => r.hotel)));
   const unassignedGuests = guests.filter(g => !g.roomId && g.status !== GuestStatus.CHECKED_OUT);
   const filteredGuests = unassignedGuests.filter(g => {
     if (!searchTerm) return true;
@@ -275,9 +318,9 @@ export default function HotelTracker() {
   });
 
   const stats = {
-    total: rooms.length,
-    occupied: rooms.filter(r => r.status === RoomStatus.OCCUPIED).length,
-    empty: rooms.filter(r => r.status === RoomStatus.EMPTY).length
+    total: filteredRooms.length,
+    occupied: filteredRooms.filter(r => r.status === RoomStatus.OCCUPIED).length,
+    empty: filteredRooms.filter(r => r.status === RoomStatus.EMPTY).length
   };
 
   return (
@@ -414,6 +457,11 @@ export default function HotelTracker() {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            <button onClick={handleExportPdf}
+              className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-lg border-2 border-primary text-primary hover:bg-primary-container transition-all font-bold text-xs uppercase tracking-widest">
+              <FileDown size={15} />
+              <span className="hidden sm:inline">Export PDF</span>
+            </button>
             <button
               onClick={downloadRoomTemplate}
               className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-lg border-2 border-secondary text-secondary hover:bg-secondary-container hover:text-on-secondary-container transition-all font-bold text-xs uppercase tracking-widest"
@@ -450,6 +498,19 @@ export default function HotelTracker() {
         </div>
       )}
 
+      {/* Status filter chips */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-none">
+        {([['all', 'All Rooms'], [RoomStatus.OCCUPIED, 'Occupied'], [RoomStatus.EMPTY, 'Empty'], [RoomStatus.CLEANING, 'Cleaning'], [RoomStatus.MAINTENANCE, 'Maintenance']] as const).map(([val, label]) => (
+          <button key={val} onClick={() => setStatusFilter(val as RoomStatus | 'all')}
+            className={cn('flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all',
+              statusFilter === val
+                ? 'bg-primary text-on-primary border-primary'
+                : 'bg-surface-container text-on-surface-variant border-outline-variant hover:bg-surface-container-high')}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="p-12 text-center">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -462,7 +523,7 @@ export default function HotelTracker() {
         </Card>
       ) : (
         hotels.map((hotel) => {
-          const hotelRooms = rooms.filter(r => r.hotel === hotel);
+          const hotelRooms = filteredRooms.filter(r => r.hotel === hotel);
           const floors = Array.from(new Set(hotelRooms.map(r => r.floor))).sort();
           const hotelCollapsed = collapsedHotels.has(hotel);
           const hotelOccupied = hotelRooms.filter(r => r.status === RoomStatus.OCCUPIED).length;
@@ -573,7 +634,7 @@ export default function HotelTracker() {
                                     </button>
                                   )}
                                   {room.status === RoomStatus.EMPTY ? (
-                                    <PlusCircle size={14} className="text-primary group-hover:text-secondary cursor-pointer" onClick={() => setSelectedRoom(room)} />
+                                    !isReadOnly && <PlusCircle size={14} className="text-primary group-hover:text-secondary cursor-pointer" onClick={() => setSelectedRoom(room)} />
                                   ) : room.status === RoomStatus.MAINTENANCE || room.status === RoomStatus.CLEANING ? (
                                     <Wrench size={14} className="text-on-surface-variant" />
                                   ) : (

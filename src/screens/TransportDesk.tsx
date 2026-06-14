@@ -4,17 +4,20 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Car, User, Phone, Plus, X } from 'lucide-react';
+import { Car, User, Phone, Plus, X, Search, FileDown } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import { Vehicle, VehicleStatus } from '../types';
 import { cn } from '../lib/utils';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { exportToPdf } from '../lib/exportPdf';
 
 export default function TransportDesk() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<VehicleStatus | 'all'>('all');
 
   useEffect(() => {
     const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (snap) => {
@@ -59,6 +62,44 @@ export default function TransportDesk() {
     }
   };
 
+  const filtered = vehicles.filter(v => {
+    if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+    if (!searchTerm) return true;
+    const s = searchTerm.toLowerCase();
+    return v.type.toLowerCase().includes(s) || v.driver.toLowerCase().includes(s) || v.plate.toLowerCase().includes(s) || v.category.toLowerCase().includes(s);
+  });
+
+  const handleExportPdf = () => {
+    exportToPdf({
+      title: 'Transport Fleet',
+      subtitle: statusFilter === 'all' ? 'All Vehicles' : `Filter: ${statusFilter}`,
+      stats: [
+        { label: 'Total', value: filtered.length },
+        { label: 'Active', value: filtered.filter(v => v.status === VehicleStatus.ACTIVE).length },
+        { label: 'In Transit', value: filtered.filter(v => v.status === VehicleStatus.IN_TRANSIT).length },
+        { label: 'At Hotel', value: filtered.filter(v => v.status === VehicleStatus.AT_HOTEL).length },
+      ],
+      columns: [
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Vehicle' },
+        { header: 'Plate #', width: '110px' },
+        { header: 'Driver' },
+        { header: 'Phone', width: '120px' },
+        { header: 'Category', width: '110px' },
+        { header: 'Status', width: '80px' },
+      ],
+      rows: filtered.map((v, i) => [
+        String(i + 1),
+        v.type,
+        v.plate,
+        v.driver,
+        v.phone,
+        v.category,
+        v.status,
+      ]),
+    });
+  };
+
   return (
     <div className="space-y-10">
       {/* Page Header */}
@@ -80,6 +121,42 @@ export default function TransportDesk() {
         </div>
       </div>
 
+      {/* Search + Filters + Export */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search vehicles..."
+            className="w-full pl-9 pr-3 py-2 text-sm border border-outline-variant rounded-lg bg-white focus:border-secondary transition-all"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(['all', VehicleStatus.ACTIVE, VehicleStatus.IN_TRANSIT, VehicleStatus.AT_HOTEL, VehicleStatus.DELAYED] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-full border transition-all",
+                statusFilter === s
+                  ? "bg-primary text-on-primary border-primary"
+                  : "border-outline-variant text-on-surface-variant hover:border-primary"
+              )}
+            >
+              {s === 'all' ? 'All' : s}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleExportPdf}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold border border-primary text-primary rounded-lg hover:bg-primary/5 transition-all ml-auto"
+        >
+          <FileDown size={14} /> Export PDF
+        </button>
+      </div>
+
       <div className="grid grid-cols-12 gap-8">
         {/* Fleet Console */}
         <div className="col-span-12 space-y-8">
@@ -95,13 +172,13 @@ export default function TransportDesk() {
                 <div className="text-center py-12">
                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
                 </div>
-              ) : vehicles.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <div className="text-center py-12 text-on-surface-variant font-medium">
-                  No vehicles registered in the fleet.
+                  {vehicles.length === 0 ? 'No vehicles registered in the fleet.' : 'No vehicles match the current filter.'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {vehicles.map((vehicle) => (
+                  {filtered.map((vehicle) => (
                     <div key={vehicle.id} className="p-5 border border-outline-variant rounded-xl hover:shadow-lg transition-all group relative overflow-hidden bg-white">
                       <div className="absolute top-0 right-0 p-3">
                         <Badge variant="primary" className="text-[8px] bg-primary/5 text-primary border-primary/20">

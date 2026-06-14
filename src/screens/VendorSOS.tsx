@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Plus, X, Trash2, BookUser, Pencil } from 'lucide-react';
+import { Search, Phone, Plus, X, Trash2, BookUser, Pencil, FileDown } from 'lucide-react';
 import { Card, Button } from '../components/UIComponents';
 import { Vendor } from '../types';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { useIsReadOnly } from '../contexts/AccessContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { validatePhone } from '../lib/validation';
 import { useEscapeKey } from '../lib/useEscapeKey';
+import { exportToPdf } from '../lib/exportPdf';
 
 export default function VendorSOS() {
   const isReadOnly = useIsReadOnly();
@@ -84,6 +85,28 @@ export default function VendorSOS() {
   const initials = (name: string) =>
     name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
+  const handleExportPdf = () => {
+    exportToPdf({
+      title: 'Wedding Contacts',
+      subtitle: searchTerm ? `Search: "${searchTerm}"` : 'All Contacts',
+      stats: [{ label: 'Total', value: filtered.length }],
+      columns: [
+        { header: '#', width: '30px', align: 'center' },
+        { header: 'Name' },
+        { header: 'Role' },
+        { header: 'Phone', width: '130px' },
+        { header: 'Notes' },
+      ],
+      rows: filtered.map((c, i) => [
+        String(i + 1),
+        c.name,
+        c.role,
+        c.phone,
+        c.notes ?? '',
+      ]),
+    });
+  };
+
   const modalOpen = isAdding || !!editingContact;
   const prefill = editingContact;
 
@@ -113,6 +136,12 @@ export default function VendorSOS() {
             </button>
           )}
         </div>
+        <button
+          onClick={handleExportPdf}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold border border-primary text-primary rounded-xl hover:bg-primary/5 transition-all shrink-0"
+        >
+          <FileDown size={14} /> Export PDF
+        </button>
         {!isReadOnly && (
           <Button variant="primary" onClick={() => setIsAdding(true)} className="shrink-0">
             <Plus size={18} />
