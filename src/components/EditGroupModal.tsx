@@ -74,6 +74,8 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting]     = useState(false);
 
   // Group-level fields
   const [groupName, setGroupName]       = useState(initialGroupName);
@@ -115,7 +117,7 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
         setLoading(false);
       })
       .catch(err => { handleFirestoreError(err, OperationType.LIST, 'guests'); setLoading(false); });
-  }, []);
+  }, [initialGroupName]);
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -236,6 +238,23 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
       setError('Failed to save. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    setDeleting(true);
+    try {
+      const batch = writeBatch(db);
+      for (const m of members) {
+        batch.delete(doc(db, 'guests', m.id));
+      }
+      await batch.commit();
+      onClose();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `groups/${initialGroupName}`);
+      setError('Failed to delete group. Please try again.');
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -491,6 +510,31 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
               </div>
 
               {error && <p className="text-xs text-red-600 font-bold">{error}</p>}
+            </div>
+
+            {/* Delete Group */}
+            <div className="mx-6 border-t border-outline-variant pt-4">
+              {confirmDelete ? (
+                <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertTriangle size={15} className="text-red-500 shrink-0" />
+                  <p className="text-xs text-red-800 font-bold flex-1">
+                    Delete "{initialGroupName}" and all {members.length} members permanently?
+                  </p>
+                  <button type="button" onClick={handleDeleteGroup} disabled={deleting}
+                    className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50">
+                    {deleting ? 'Deleting…' : 'Yes, Delete'}
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)}
+                    className="text-[10px] font-bold text-outline hover:text-on-surface">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(true)}
+                  className="flex items-center gap-2 text-xs font-bold text-red-400 hover:text-red-600 transition-colors">
+                  <Trash2 size={13} /> Delete entire group
+                </button>
+              )}
             </div>
 
             {/* Footer */}
