@@ -14,9 +14,11 @@ import { useIsReadOnly } from '../contexts/AccessContext';
 import { exportToPdf } from '../lib/exportPdf';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import { downloadRoomTemplate, parseRoomExcel, ParsedRoomRow } from '../lib/roomExcel';
+import { useToast } from '../components/Toast';
 
 export default function HotelTracker() {
   const isReadOnly = useIsReadOnly();
+  const { showToast } = useToast();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -126,6 +128,7 @@ export default function HotelTracker() {
       setSelectedGuestIds([]);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `rooms/${selectedRoom.id}`);
+      showToast('Failed to assign guests to room', 'error');
     }
   };
 
@@ -146,6 +149,7 @@ export default function HotelTracker() {
       setOccupiedRoom(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `rooms/${room.id}`);
+      showToast('Failed to release room', 'error');
     }
   };
 
@@ -166,6 +170,7 @@ export default function HotelTracker() {
       setConfirmDeleteRoomId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `rooms/${room.id}`);
+      showToast('Failed to delete room', 'error');
     }
   };
 
@@ -186,6 +191,7 @@ export default function HotelTracker() {
       await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${guest.id}`);
+      showToast('Failed to remove guest from room', 'error');
     }
   };
 
@@ -214,6 +220,7 @@ export default function HotelTracker() {
       setIsAddingRoom(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `rooms/${id}`);
+      showToast('Failed to add room', 'error');
     }
   };
 
@@ -907,14 +914,23 @@ export default function HotelTracker() {
             <div className="p-6 bg-surface-container-low/30 border-t border-outline-variant flex justify-end gap-3">
               <Button variant="ghost" onClick={() => setOccupiedRoom(null)}>Close</Button>
               {!isReadOnly && (
-                <Button
-                  variant="secondary"
-                  onClick={() => handleReleaseRoom(occupiedRoom)}
-                  className="bg-red-600 text-white hover:bg-red-700 border-red-600"
-                >
-                  <LogOut size={16} />
-                  Check Out & Release Room
-                </Button>
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => { setSelectedRoom(occupiedRoom); setOccupiedRoom(null); }}
+                  >
+                    <UserPlus size={16} />
+                    Add Guests
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleReleaseRoom(occupiedRoom)}
+                    className="bg-red-600 text-white hover:bg-red-700 border-red-600"
+                  >
+                    <LogOut size={16} />
+                    Check Out & Release
+                  </Button>
+                </>
               )}
             </div>
           </Card>

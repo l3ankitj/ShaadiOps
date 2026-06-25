@@ -11,8 +11,10 @@ import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Guest, GuestStatus, EventConfig, ItineraryItem } from '../types';
 import { exportToPdf } from '../lib/exportPdf';
+import { useToast } from '../components/Toast';
 
 export default function Dashboard() {
+  const { showToast } = useToast();
   const [counts, setCounts] = useState({ guests: 0, checkins: 0 });
   const [eventConfig, setEventConfig] = useState<EventConfig | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -49,20 +51,24 @@ export default function Dashboard() {
     const id = crypto.randomUUID();
     const startTimeStr = formData.get('startTime') as string;
     const endTimeStr = formData.get('endTime') as string;
-    const newItem: ItineraryItem = {
+    const newItem: Record<string, string> = {
       id,
       title: formData.get('title') as string,
-      description: formData.get('description') as string,
       venue: formData.get('venue') as string,
-      category: formData.get('category') as string,
       startTime: `${selectedDate}T${startTimeStr.replace('.', ':')}:00`,
-      endTime: endTimeStr ? `${selectedDate}T${endTimeStr.replace('.', ':')}:00` : undefined,
     };
+    const desc = (formData.get('description') as string)?.trim();
+    const cat = formData.get('category') as string;
+    if (desc) newItem.description = desc;
+    if (cat) newItem.category = cat;
+    if (endTimeStr) newItem.endTime = `${selectedDate}T${endTimeStr.replace('.', ':')}:00`;
     try {
       await setDoc(doc(db, 'itinerary', id), newItem);
       setIsAddingEvent(false);
+      showToast('Event added to itinerary');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `itinerary/${id}`);
+      showToast('Failed to save event — check your connection and try again', 'error');
     }
   };
 

@@ -262,14 +262,8 @@ export interface ParsedRow {
   warnings: string[];
 }
 
-export interface ParseError {
-  rowIndex: number;
-  message: string;
-}
-
 export interface ParseResult {
   rows: ParsedRow[];
-  errors: ParseError[];
 }
 
 // ─── Main parse function ─────────────────────────────────────────────────────
@@ -293,7 +287,7 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
           dateNF: 'yyyy-mm-dd',
         });
 
-        if (aoa.length < 2) return resolve({ rows: [], errors: [] });
+        if (aoa.length < 2) return resolve({ rows: [] });
 
         // Detect header row — find row with "Name" in col 0
         let headerRowIdx = 0;
@@ -309,7 +303,6 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
         const col = (name: string) => headers.indexOf(name.toLowerCase());
 
         const rows: ParsedRow[] = [];
-        const errors: ParseError[] = [];
 
         for (let i = headerRowIdx + 1; i < aoa.length; i++) {
           const row = aoa[i];
@@ -334,7 +327,6 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
           const arrivalDate = parseDate(arrivalDateRaw);
           const departureDate = parseDate(departureDateRaw);
 
-          const hasTravelDetails = !!(arrivalDate && departureDate);
           const arrivalMode = parseArrivalMode(row[col('arrival mode')]);
           const departureMode = parseArrivalMode(row[col('departure mode')]);
 
@@ -348,25 +340,26 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
             inviteStatus,
             status: GuestStatus.PENDING,
             ...(str(row[col('dietary')]) ? { dietary: str(row[col('dietary')]) } : {}),
-            // Travel details only if dates provided
-            ...(hasTravelDetails ? {
+            // Arrival travel — only written if an arrival date is present
+            ...(arrivalDate ? {
               arrivalMode,
-              departureMode,
               arrivalDateTime: `${arrivalDate}T${parseTime(row[col('arrival time')])}:00`,
-              departureDateTime: `${departureDate}T${parseTime(row[col('departure time')])}:00`,
               ...(str(row[col('travel details (arrival)')]) ? { travelDetails: str(row[col('travel details (arrival)')]) } : {}),
-              ...(str(row[col('departure details')]) ? { departureDetails: str(row[col('departure details')]) } : {}),
-              // Train
               ...(str(row[col('arrival train name')]) ? { arrivalTrainName: str(row[col('arrival train name')]) } : {}),
               ...(str(row[col('arrival train number')]) ? { arrivalTrainNumber: str(row[col('arrival train number')]) } : {}),
               ...(str(row[col('arrival coach')]) ? { arrivalCoach: str(row[col('arrival coach')]) } : {}),
               ...(str(row[col('arrival seat')]) ? { arrivalSeat: str(row[col('arrival seat')]) } : {}),
+              ...(str(row[col('arrival flight number')]) ? { arrivalFlightNumber: str(row[col('arrival flight number')]) } : {}),
+            } : {}),
+            // Departure travel — only written if a departure date is present
+            ...(departureDate ? {
+              departureMode,
+              departureDateTime: `${departureDate}T${parseTime(row[col('departure time')])}:00`,
+              ...(str(row[col('departure details')]) ? { departureDetails: str(row[col('departure details')]) } : {}),
               ...(str(row[col('departure train name')]) ? { departureTrainName: str(row[col('departure train name')]) } : {}),
               ...(str(row[col('departure train number')]) ? { departureTrainNumber: str(row[col('departure train number')]) } : {}),
               ...(str(row[col('departure coach')]) ? { departureCoach: str(row[col('departure coach')]) } : {}),
               ...(str(row[col('departure seat')]) ? { departureSeat: str(row[col('departure seat')]) } : {}),
-              // Flight
-              ...(str(row[col('arrival flight number')]) ? { arrivalFlightNumber: str(row[col('arrival flight number')]) } : {}),
               ...(str(row[col('departure flight number')]) ? { departureFlightNumber: str(row[col('departure flight number')]) } : {}),
             } : {}),
           };
@@ -374,7 +367,7 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
           rows.push({ guest, rowIndex, warnings });
         }
 
-        resolve({ rows, errors });
+        resolve({ rows });
       } catch (err) {
         reject(err);
       }
@@ -383,4 +376,103 @@ export function parseGuestExcel(file: File): Promise<ParseResult> {
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsArrayBuffer(file);
   });
+}
+
+// ─── Guest list export ──────────────────────────────────────────────────────
+
+function fmtDate(dt: string | undefined): string {
+  if (!dt) return '';
+  try {
+    return new Date(dt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return ''; }
+}
+
+function fmtTime(dt: string | undefined): string {
+  if (!dt) return '';
+  try {
+    return new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch { return ''; }
+}
+
+const EXPORT_COLUMNS = [
+  '#',
+  'Name',
+  'Phone',
+  'Group',
+  'Family Side',
+  'Invite Status',
+  'Check-in Status',
+  'Local Guest',
+  'Hotel',
+  'Room',
+  'Arrival Date',
+  'Arrival Time',
+  'Arrival Mode',
+  'Arrival Train',
+  'Arrival Train #',
+  'Arrival Coach',
+  'Arrival Seat',
+  'Arrival Flight #',
+  'Arrival Notes',
+  'Departure Date',
+  'Departure Time',
+  'Departure Mode',
+  'Departure Train',
+  'Departure Train #',
+  'Departure Coach',
+  'Departure Seat',
+  'Departure Flight #',
+  'Departure Notes',
+  'Dietary',
+];
+
+export function exportGuestExcel(guests: Guest[], filterLabel: string) {
+  const wb = XLSX.utils.book_new();
+
+  const header = [...EXPORT_COLUMNS];
+  const rows = guests.map((g, i) => [
+    i + 1,
+    g.name,
+    g.phone || '',
+    g.groupName || '',
+    g.familySide === FamilySide.BRIDE ? 'Bride Side' : 'Groom Side',
+    g.inviteStatus ?? 'Pending',
+    g.status ?? 'Pending',
+    g.isLocal ? 'Yes' : '',
+    g.hotelName || '',
+    g.roomNumber || '',
+    fmtDate(g.arrivalDateTime),
+    fmtTime(g.arrivalDateTime),
+    g.arrivalMode || '',
+    g.arrivalTrainName || '',
+    g.arrivalTrainNumber || '',
+    g.arrivalCoach || '',
+    g.arrivalSeat || '',
+    g.arrivalFlightNumber || '',
+    g.travelDetails || '',
+    fmtDate(g.departureDateTime),
+    fmtTime(g.departureDateTime),
+    g.departureMode || '',
+    g.departureTrainName || '',
+    g.departureTrainNumber || '',
+    g.departureCoach || '',
+    g.departureSeat || '',
+    g.departureFlightNumber || '',
+    g.departureDetails || '',
+    g.dietary || '',
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+  // Column widths
+  const widths = [5, 22, 14, 20, 12, 12, 14, 10, 18, 8, 14, 10, 10, 20, 12, 8, 8, 14, 22, 14, 10, 10, 20, 12, 8, 8, 14, 22, 18];
+  ws['!cols'] = widths.map(w => ({ wch: w }));
+
+  // Auto-filter on all columns
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: header.length - 1 } }) };
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Guest List');
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `ShaadiOps_GuestList_${filterLabel}_${timestamp}.xlsx`);
 }

@@ -7,20 +7,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, Search, X, Plane, Car, Train, Bus,
   Download, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2,
-  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2, Pencil, FileDown,
+  Loader2, ChevronDown, ChevronUp, Users2, StickyNote, BedDouble, Trash2, Pencil, FileDown, MapPin,
 } from 'lucide-react';
 import { Card, StatCard, Badge, Button } from '../components/UIComponents';
 import { collection, onSnapshot, orderBy, query, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Guest, GuestStatus, InviteStatus, FamilySide, ArrivalMode } from '../types';
 import { cn } from '../lib/utils';
-import { downloadGuestTemplate, parseGuestExcel, ParsedRow } from '../lib/guestExcel';
+import { downloadGuestTemplate, parseGuestExcel, ParsedRow, exportGuestExcel } from '../lib/guestExcel';
 import { useIsReadOnly } from '../contexts/AccessContext';
 import AddGroupModal from '../components/AddGroupModal';
 import EditGroupModal from '../components/EditGroupModal';
 import { validatePhone, validateDateStr, validateTimeStr } from '../lib/validation';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import { exportToPdf } from '../lib/exportPdf';
+import { useToast } from '../components/Toast';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,7 @@ function ImportModal({ rows, onConfirm, onCancel, importing, importDone, importC
 
 export default function GuestList() {
   const isReadOnly = useIsReadOnly();
+  const { showToast } = useToast();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,6 +200,9 @@ export default function GuestList() {
 
   // Group edit state
   const [editGroupName, setEditGroupName] = useState('');
+
+  // Local guest edit state
+  const [editIsLocal, setEditIsLocal] = useState(false);
 
   // Travel edit state
   const [editShowTravel, setEditShowTravel] = useState(false);
@@ -290,11 +295,13 @@ export default function GuestList() {
   useEffect(() => {
     if (!editingGuest) {
       setEditShowTravel(false);
+      setEditIsLocal(false);
       setEditGroupName('');
       setEditPhoneError(null); setEditArrDateErr(null); setEditArrTimeErr(null);
       setEditDepDateErr(null); setEditDepTimeErr(null);
       return;
     }
+    setEditIsLocal(editingGuest.isLocal ?? false);
     setEditGroupName(editingGuest.groupName ?? '');
     setEditArrivalMode(editingGuest.arrivalMode ?? ArrivalMode.CAR);
     setEditDepartureMode(editingGuest.departureMode ?? ArrivalMode.CAR);
@@ -424,6 +431,7 @@ export default function GuestList() {
       familySide: safeFamilySide,
       notes: (fd.get('notes') as string).trim() || undefined,
       isPrimaryContact: newGroupName ? (fd.get('isPrimaryContact') === 'on') : undefined,
+      isLocal: editIsLocal || undefined,
       // Mark as custom travel if this group member's travel was individually set
       customTravel: newGroupName && travelChanged ? true : undefined,
       // Reset all travel fields then apply new values
@@ -447,6 +455,7 @@ export default function GuestList() {
       setEditingGuest(null);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `guests/${editingGuest.id}`);
+      showToast('Failed to save guest changes', 'error');
     }
   };
 
@@ -455,6 +464,7 @@ export default function GuestList() {
       await deleteDoc(doc(db, 'guests', guestId));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `guests/${guestId}`);
+      showToast('Failed to delete guest', 'error');
     } finally {
       setConfirmDeleteId(null);
     }
@@ -483,6 +493,11 @@ export default function GuestList() {
       if (notes) detail += ` | ${notes}`;
     }
     return detail;
+  };
+
+  const handleExportExcel = () => {
+    const label = filter === 'all' ? 'All' : filter.replace(/\s+/g, '_');
+    exportGuestExcel(filtered, label);
   };
 
   const handleExportPdf = () => {
@@ -550,6 +565,10 @@ export default function GuestList() {
           <button onClick={handleExportPdf}
             className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border-2 border-primary text-primary hover:bg-primary-container transition-all font-bold text-xs uppercase tracking-widest">
             <FileDown size={15} /><span className="hidden sm:inline">Export PDF</span>
+          </button>
+          <button onClick={handleExportExcel}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border-2 border-primary text-primary hover:bg-primary-container transition-all font-bold text-xs uppercase tracking-widest">
+            <FileSpreadsheet size={15} /><span className="hidden sm:inline">Export Excel</span>
           </button>
           <button onClick={downloadGuestTemplate}
             className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg border-2 border-secondary text-secondary hover:bg-secondary-container transition-all font-bold text-xs uppercase tracking-widest">
@@ -777,6 +796,9 @@ export default function GuestList() {
                                 <span className="text-[8px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Primary</span>
                               )}
                               <span className="text-sm font-bold text-primary truncate">{guest.name}</span>
+                              {guest.isLocal && (
+                                <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 flex items-center gap-0.5"><MapPin size={8} />Local</span>
+                              )}
                               {guest.customTravel && (
                                 <span className="text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">Custom travel</span>
                               )}
@@ -843,6 +865,8 @@ export default function GuestList() {
                                   <p className="text-[9px] text-on-surface-variant truncate pl-5">{guest.departureDetails}</p>
                                 )}
                               </div>
+                            ) : guest.isLocal ? (
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1"><MapPin size={10} />Local</span>
                             ) : (
                               <span className="text-[10px] text-outline/40">No travel</span>
                             )}
@@ -1001,18 +1025,33 @@ export default function GuestList() {
                   </label>
                 )}
 
-                {/* Travel Details */}
+                {/* Local Guest + Travel Details */}
                 <div className="space-y-3 border-t border-outline-variant pt-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Travel Itinerary</label>
-                    <button type="button" onClick={() => setEditShowTravel(v => !v)}
-                      className={cn('px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all',
-                        editShowTravel ? 'bg-secondary text-on-secondary border-secondary' : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary')}>
-                      {editShowTravel ? 'Hide' : '+ Add Travel'}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setEditIsLocal(!editIsLocal); if (!editIsLocal) setEditShowTravel(false); }}
+                      className={cn('w-10 h-5 rounded-full transition-colors shrink-0 relative overflow-hidden',
+                        editIsLocal ? 'bg-secondary' : 'bg-outline-variant')}
+                    >
+                      <span className={cn('absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                        editIsLocal ? 'translate-x-5' : 'translate-x-0')} />
                     </button>
+                    <span className="text-sm font-bold text-primary flex items-center gap-1.5"><MapPin size={13} className="text-secondary" />Local Guest</span>
                   </div>
 
-                  {editShowTravel && (
+                  {!editIsLocal && (
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Travel Itinerary</label>
+                      <button type="button" onClick={() => setEditShowTravel(v => !v)}
+                        className={cn('px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all',
+                          editShowTravel ? 'bg-secondary text-on-secondary border-secondary' : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary')}>
+                        {editShowTravel ? 'Hide' : '+ Add Travel'}
+                      </button>
+                    </div>
+                  )}
+
+                  {editShowTravel && !editIsLocal && (
                     <div className="space-y-4">
                       {/* Arrival */}
                       <div className="bg-surface-container-low rounded-xl p-4 space-y-3 border border-outline-variant/60">

@@ -26,7 +26,7 @@ export function Badge({ children, variant = 'default', className }: { children: 
     default: "bg-surface-container text-on-surface-variant border-outline-variant",
     primary: "bg-primary-container text-on-primary-container border-primary/20",
     secondary: "bg-secondary-container text-on-secondary-container border-secondary/20",
-    error: "bg-tertiary-container text-on-tertiary-container border-tertiary/20",
+    error: "bg-red-100 text-red-800 border-red-200",
     success: "bg-emerald-100 text-emerald-800 border-emerald-200",
     ghost: "bg-transparent text-outline border-outline-variant opacity-70",
   };

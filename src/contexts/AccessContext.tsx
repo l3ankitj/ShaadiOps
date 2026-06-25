@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export type AccessLevel = 'full' | 'readonly';
 
@@ -7,7 +7,9 @@ export const ACCESS_STORAGE_KEY = 'shaadiops_access';
 const AccessContext = createContext<AccessLevel>('full');
 
 export function AccessProvider({ children }: { children: React.ReactNode }) {
-  const level = (sessionStorage.getItem(ACCESS_STORAGE_KEY) as AccessLevel) || 'full';
+  const [level] = useState<AccessLevel>(
+    () => (sessionStorage.getItem(ACCESS_STORAGE_KEY) as AccessLevel) || 'full'
+  );
   return <AccessContext.Provider value={level}>{children}</AccessContext.Provider>;
 }
 

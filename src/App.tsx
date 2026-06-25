@@ -14,12 +14,14 @@ import VendorSOS from './screens/VendorSOS';
 import Settings from './screens/Settings';
 import PinGate from './components/PinGate';
 import { AccessProvider } from './contexts/AccessContext';
+import { ToastProvider } from './components/Toast';
 
 function App() {
   return (
     <BrowserRouter>
       <PinGate>
         <AccessProvider>
+          <ToastProvider>
           <AppLayout>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -33,6 +35,7 @@ function App() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </AppLayout>
+          </ToastProvider>
         </AccessProvider>
       </PinGate>
     </BrowserRouter>

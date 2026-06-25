@@ -66,6 +66,8 @@ export interface Guest {
   // Group travel flag — set when this member's travel was individually edited
   // after a bulk group travel was applied. Cleared on next bulk group update.
   customTravel?: boolean;
+  // Local guest — no transportation needed (lives nearby)
+  isLocal?: boolean;
 }
 
 export enum VehicleStatus {

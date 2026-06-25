@@ -8,7 +8,7 @@ import {
   Search, Calendar, UserPlus, ChevronRight, X,
   Train, Car, PlaneLanding, Plane, AlertTriangle,
   CheckCircle2, Bus, ChevronDown, ChevronUp, ArrowUpDown,
-  Users2, StickyNote, LogOut, Trash2, Building2, FileDown,
+  Users2, StickyNote, LogOut, Trash2, Building2, FileDown, MapPin,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UIComponents';
 import AddGroupModal from '../components/AddGroupModal';
@@ -21,6 +21,7 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy, deleteF
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useIsReadOnly } from '../contexts/AccessContext';
 import { exportToPdf } from '../lib/exportPdf';
+import { useToast } from '../components/Toast';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ function SortIcon({ col, active, dir }: { col: SortCol; active: SortCol; dir: 'a
 
 export default function GuestOps() {
   const isReadOnly = useIsReadOnly();
+  const { showToast } = useToast();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isAddingGuest, setIsAddingGuest] = useState(false);
@@ -113,6 +115,7 @@ export default function GuestOps() {
   const [formIsPrimary, setFormIsPrimary] = useState(true);
   const [formGroupName, setFormGroupName] = useState('');
   const [showTravelSection, setShowTravelSection] = useState(false);
+  const [formIsLocal, setFormIsLocal] = useState(false);
   const [formArrivalMode, setFormArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
   const [formDepartureMode, setFormDepartureMode] = useState<ArrivalMode>(ArrivalMode.CAR);
   const [arrivalAmPm, setArrivalAmPm] = useState<'AM' | 'PM'>('AM');
@@ -162,6 +165,7 @@ export default function GuestOps() {
     setFormIsPrimary(true);
     setFormInviteStatus(InviteStatus.PENDING);
     setFamilySideChoice(FamilySide.BRIDE);
+    setFormIsLocal(false);
     setFormArrivalMode(ArrivalMode.CAR);
     setFormDepartureMode(ArrivalMode.CAR);
     setShowTravelSection(false);
@@ -200,6 +204,7 @@ export default function GuestOps() {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${guestId}`);
+      showToast('Failed to update guest status', 'error');
     }
   };
 
@@ -211,6 +216,7 @@ export default function GuestOps() {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${guestId}`);
+      showToast('Failed to update invite status', 'error');
     }
   };
 
@@ -255,6 +261,7 @@ export default function GuestOps() {
       setSelectedGuest(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `guests/${selectedGuest.id}`);
+      showToast('Failed to save guest changes', 'error');
     } finally {
       setDrawerSaving(false);
     }
@@ -267,6 +274,7 @@ export default function GuestOps() {
       setConfirmDeleteId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `guests/${guestId}`);
+      showToast('Failed to delete guest', 'error');
     }
   };
 
@@ -337,6 +345,7 @@ export default function GuestOps() {
       status: GuestStatus.PENDING,
       dietary: (formData.get('dietary') as string) || undefined,
       notes: (formData.get('notes') as string) || undefined,
+      isLocal: formIsLocal || undefined,
       ...travelFields,
     };
 
@@ -351,6 +360,7 @@ export default function GuestOps() {
       resetForm();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `guests/${id}`);
+      showToast('Failed to register guest', 'error');
     }
   };
 
@@ -826,18 +836,36 @@ export default function GuestOps() {
                       <h4 className="text-sm font-black text-primary uppercase tracking-widest">Travel Details</h4>
                       <span className="text-[10px] text-outline font-medium">(optional — can be added later)</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowTravelSection(!showTravelSection)}
-                      className={cn('flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all',
-                        showTravelSection ? 'bg-secondary text-on-secondary border-secondary' : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary')}
-                    >
-                      {showTravelSection ? 'Hide' : '+ Add Travel'}
-                      <ChevronDown size={14} className={cn('transition-transform', showTravelSection && 'rotate-180')} />
-                    </button>
+                    {!formIsLocal && (
+                      <button
+                        type="button"
+                        onClick={() => setShowTravelSection(!showTravelSection)}
+                        className={cn('flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all',
+                          showTravelSection ? 'bg-secondary text-on-secondary border-secondary' : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary')}
+                      >
+                        {showTravelSection ? 'Hide' : '+ Add Travel'}
+                        <ChevronDown size={14} className={cn('transition-transform', showTravelSection && 'rotate-180')} />
+                      </button>
+                    )}
                   </div>
 
-                  {showTravelSection && (
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => { setFormIsLocal(!formIsLocal); if (!formIsLocal) setShowTravelSection(false); }}
+                      className={cn('w-12 h-6 rounded-full transition-colors shrink-0 relative overflow-hidden',
+                        formIsLocal ? 'bg-secondary' : 'bg-outline-variant')}
+                    >
+                      <span className={cn('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                        formIsLocal ? 'translate-x-6' : 'translate-x-0')} />
+                    </button>
+                    <div>
+                      <p className="text-sm font-bold text-primary flex items-center gap-2"><MapPin size={14} className="text-secondary" />Local Guest</p>
+                      <p className="text-[10px] text-outline">No transportation needed — lives nearby or arranging their own travel</p>
+                    </div>
+                  </div>
+
+                  {showTravelSection && !formIsLocal && (
                     <div className="space-y-8">
                       {/* Arrival */}
                       <div className="bg-white p-6 md:p-8 rounded-3xl border border-outline-variant/30 shadow-sm space-y-6">
@@ -1129,6 +1157,17 @@ export default function GuestOps() {
                     ))}
                   </div>
                 </div>}
+
+                {/* Local Guest Badge */}
+                {selectedGuest.isLocal && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <MapPin size={16} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest">Local Guest</p>
+                      <p className="text-[10px] text-emerald-600">No transportation needed</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Travel Details */}
                 {selectedGuest.arrivalDateTime && (

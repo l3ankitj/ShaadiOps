@@ -17,7 +17,6 @@ import {
   RefreshCw,
   HelpCircle,
   X,
-  LayoutDashboard as DashIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useIsReadOnly } from '../contexts/AccessContext';
@@ -128,7 +127,7 @@ export function TopNav({ onMenuClick }: { onMenuClick: () => void }) {
               </div>
               <div className="px-4 py-3 space-y-3">
                 {[
-                  { icon: DashIcon,    label: 'Dashboard',      desc: 'Itinerary & daily arrivals' },
+                  { icon: LayoutDashboard, label: 'Dashboard',   desc: 'Itinerary & daily arrivals' },
                   { icon: ClipboardList, label: 'Guest List',   desc: 'Groups, invite status, import' },
                   { icon: Users,       label: 'Guest Ops',      desc: 'Add guests, track check-in' },
                   { icon: Hotel,       label: 'Hotel Tracker',  desc: 'Room inventory & assignment' },
