@@ -462,14 +462,26 @@ export function exportGuestExcel(guests: Guest[], filterLabel: string) {
     g.dietary || '',
   ]);
 
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const weddingHeader = [
+    ['Tamanna & Siddharth'],
+    ['#SidkiTamana'],
+    [],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([...weddingHeader, header, ...rows]);
+
+  // Merge wedding name across all columns
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: header.length - 1 } },
+  ];
 
   // Column widths
   const widths = [5, 22, 14, 20, 12, 12, 14, 10, 18, 8, 14, 10, 10, 20, 12, 8, 8, 14, 22, 14, 10, 10, 20, 12, 8, 8, 14, 22, 18];
   ws['!cols'] = widths.map(w => ({ wch: w }));
 
-  // Auto-filter on all columns
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: header.length - 1 } }) };
+  // Auto-filter on data columns (row index 3 = header after wedding rows)
+  const dataHeaderRow = weddingHeader.length;
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: dataHeaderRow, c: 0 }, e: { r: dataHeaderRow + rows.length, c: header.length - 1 } }) };
 
   XLSX.utils.book_append_sheet(wb, ws, 'Guest List');
 

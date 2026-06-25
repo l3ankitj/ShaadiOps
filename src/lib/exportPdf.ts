@@ -46,6 +46,10 @@ export function exportToPdf(opts: PdfOptions) {
 @page { size: ${orientation}; margin: 15mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a1a2e; font-size: 11px; }
+.wedding { text-align: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #c8a96e; }
+.wedding .names { font-size: 26px; font-weight: 800; color: #1a1a2e; letter-spacing: 3px; }
+.wedding .amp { color: #c8a96e; margin: 0 4px; }
+.wedding .hashtag { font-size: 9px; color: #c8a96e; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; margin-top: 2px; }
 .header { text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #1a1a2e; }
 .header h1 { font-size: 22px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
 .header .sub { font-size: 10px; color: #666; letter-spacing: 1.5px; text-transform: uppercase; }
@@ -62,6 +66,10 @@ tr:nth-child(even) td { background: #fafafa; }
 @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head><body>
+<div class="wedding">
+  <div class="names">Tamanna <span class="amp">&</span> Siddharth</div>
+  <div class="hashtag">#SidkiTamana</div>
+</div>
 <div class="header">
   <h1>${title}</h1>
   ${subtitle ? `<div class="sub">${subtitle}</div>` : ''}
