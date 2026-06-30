@@ -147,9 +147,32 @@ export default function HotelTracker() {
       batch.update(doc(db, 'rooms', room.id), { status: RoomStatus.EMPTY });
       await batch.commit();
       setOccupiedRoom(null);
+      showToast(`Room ${room.number} checked out — ${roomGuests.length} guest${roomGuests.length !== 1 ? 's' : ''} marked as checked out`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `rooms/${room.id}`);
-      showToast('Failed to release room', 'error');
+      showToast('Failed to check out room', 'error');
+    }
+  };
+
+  const handleEmptyRoom = async (room: Room) => {
+    try {
+      const batch = writeBatch(db);
+      const roomGuests = guestsByRoom.get(room.id) || [];
+      for (const guest of roomGuests) {
+        batch.update(doc(db, 'guests', guest.id), {
+          status: GuestStatus.PENDING,
+          roomId: deleteField(),
+          roomNumber: deleteField(),
+          hotelName: deleteField(),
+        });
+      }
+      batch.update(doc(db, 'rooms', room.id), { status: RoomStatus.EMPTY });
+      await batch.commit();
+      setOccupiedRoom(null);
+      showToast(`Room ${room.number} emptied — ${roomGuests.length} guest${roomGuests.length !== 1 ? 's' : ''} unassigned`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `rooms/${room.id}`);
+      showToast('Failed to empty room', 'error');
     }
   };
 
@@ -911,10 +934,9 @@ export default function HotelTracker() {
                 )}
               </div>
             </div>
-            <div className="p-6 bg-surface-container-low/30 border-t border-outline-variant flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setOccupiedRoom(null)}>Close</Button>
+            <div className="p-6 bg-surface-container-low/30 border-t border-outline-variant space-y-3">
               {!isReadOnly && (
-                <>
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="primary"
                     onClick={() => { setSelectedRoom(occupiedRoom); setOccupiedRoom(null); }}
@@ -923,15 +945,31 @@ export default function HotelTracker() {
                     Add Guests
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={() => handleEmptyRoom(occupiedRoom)}
+                    className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                  >
+                    <UserMinus size={16} />
+                    Empty Room
+                  </Button>
+                  <Button
                     variant="secondary"
                     onClick={() => handleReleaseRoom(occupiedRoom)}
                     className="bg-red-600 text-white hover:bg-red-700 border-red-600"
                   >
                     <LogOut size={16} />
-                    Check Out & Release
+                    Check Out
                   </Button>
-                </>
+                </div>
               )}
+              <div className="flex justify-between items-center text-[9px] text-outline">
+                <span>
+                  <strong className="text-amber-700">Empty Room</strong> — unassigns guests (they keep their data, can be reassigned)
+                  &nbsp;·&nbsp;
+                  <strong className="text-red-600">Check Out</strong> — marks guests as checked out & released
+                </span>
+                <Button variant="ghost" onClick={() => setOccupiedRoom(null)} className="shrink-0">Close</Button>
+              </div>
             </div>
           </Card>
         </div>
