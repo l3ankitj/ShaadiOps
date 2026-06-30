@@ -282,7 +282,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => shiftDate(-1)}
-            className="p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
+            className="relative z-30 p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
             title="Previous day"
           >
             <ChevronLeft size={16} className="text-primary" />
@@ -306,7 +306,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => shiftDate(1)}
-            className="p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
+            className="relative z-30 p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
             title="Next day"
           >
             <ChevronRight size={16} className="text-primary" />
