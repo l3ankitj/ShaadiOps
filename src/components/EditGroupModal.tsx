@@ -92,6 +92,7 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
   const [arrTimeStr, setArrTimeStr]         = useState('');
   const [depDateStr, setDepDateStr]         = useState('');
   const [depTimeStr, setDepTimeStr]         = useState('');
+  const [seedTravel, setSeedTravel]         = useState<Guest | null>(null);
 
   useEscapeKey(onClose);
 
@@ -109,6 +110,24 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
           setFamilySide(gs[0].familySide);
           const statuses = [...new Set(gs.map(g => g.inviteStatus ?? InviteStatus.PENDING))];
           setInviteStatus(statuses.length === 1 ? statuses[0] : 'mixed');
+
+          const travelRef = gs.find(g => !g.customTravel && g.arrivalDateTime) ?? gs.find(g => g.arrivalDateTime);
+          if (travelRef) {
+            setSeedTravel(travelRef);
+            setApplyTravel(true);
+            setArrMode(travelRef.arrivalMode ?? ArrivalMode.CAR);
+            if (travelRef.arrivalDateTime) {
+              const ad = new Date(travelRef.arrivalDateTime);
+              setArrDateStr(`${String(ad.getDate()).padStart(2, '0')}.${ad.getMonth() + 1}`);
+              setArrTimeStr(`${String(ad.getHours()).padStart(2, '0')}.${String(ad.getMinutes()).padStart(2, '0')}`);
+            }
+            setDepMode(travelRef.departureMode ?? ArrivalMode.CAR);
+            if (travelRef.departureDateTime) {
+              const dd = new Date(travelRef.departureDateTime);
+              setDepDateStr(`${String(dd.getDate()).padStart(2, '0')}.${dd.getMonth() + 1}`);
+              setDepTimeStr(`${String(dd.getHours()).padStart(2, '0')}.${String(dd.getMinutes()).padStart(2, '0')}`);
+            }
+          }
         }
         setLoading(false);
       })
@@ -450,17 +469,17 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
                       </div>
                       {arrMode === ArrivalMode.TRAIN && (
                         <div className="grid grid-cols-2 gap-2">
-                          <input name="arrivalTrainName" placeholder="Train name" className={inputCls} />
-                          <input name="arrivalTrainNumber" placeholder="Train no." className={inputCls} />
-                          <input name="arrivalCoach" placeholder="Coach" className={inputCls} />
-                          <input name="arrivalSeat" placeholder="Seat" className={inputCls} />
+                          <input name="arrivalTrainName" placeholder="Train name" defaultValue={seedTravel?.arrivalTrainName ?? ''} className={inputCls} />
+                          <input name="arrivalTrainNumber" placeholder="Train no." defaultValue={seedTravel?.arrivalTrainNumber ?? ''} className={inputCls} />
+                          <input name="arrivalCoach" placeholder="Coach" defaultValue={seedTravel?.arrivalCoach ?? ''} className={inputCls} />
+                          <input name="arrivalSeat" placeholder="Seat" defaultValue={seedTravel?.arrivalSeat ?? ''} className={inputCls} />
                         </div>
                       )}
                       {arrMode === ArrivalMode.FLIGHT && (
-                        <input name="arrivalFlightNumber" placeholder="Flight number" className={inputCls} />
+                        <input name="arrivalFlightNumber" placeholder="Flight number" defaultValue={seedTravel?.arrivalFlightNumber ?? ''} className={inputCls} />
                       )}
                       {(arrMode === ArrivalMode.CAR || arrMode === ArrivalMode.BUS) && (
-                        <input name="travelDetails" placeholder="Notes (optional)" className={inputCls} />
+                        <input name="travelDetails" placeholder="Notes (optional)" defaultValue={seedTravel?.travelDetails ?? ''} className={inputCls} />
                       )}
                     </div>
 
@@ -480,17 +499,17 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
                       </div>
                       {depMode === ArrivalMode.TRAIN && (
                         <div className="grid grid-cols-2 gap-2">
-                          <input name="departureTrainName" placeholder="Train name" className={inputCls} />
-                          <input name="departureTrainNumber" placeholder="Train no." className={inputCls} />
-                          <input name="departureCoach" placeholder="Coach" className={inputCls} />
-                          <input name="departureSeat" placeholder="Seat" className={inputCls} />
+                          <input name="departureTrainName" placeholder="Train name" defaultValue={seedTravel?.departureTrainName ?? ''} className={inputCls} />
+                          <input name="departureTrainNumber" placeholder="Train no." defaultValue={seedTravel?.departureTrainNumber ?? ''} className={inputCls} />
+                          <input name="departureCoach" placeholder="Coach" defaultValue={seedTravel?.departureCoach ?? ''} className={inputCls} />
+                          <input name="departureSeat" placeholder="Seat" defaultValue={seedTravel?.departureSeat ?? ''} className={inputCls} />
                         </div>
                       )}
                       {depMode === ArrivalMode.FLIGHT && (
-                        <input name="departureFlightNumber" placeholder="Flight number" className={inputCls} />
+                        <input name="departureFlightNumber" placeholder="Flight number" defaultValue={seedTravel?.departureFlightNumber ?? ''} className={inputCls} />
                       )}
                       {(depMode === ArrivalMode.CAR || depMode === ArrivalMode.BUS) && (
-                        <input name="departureDetails" placeholder="Notes (optional)" className={inputCls} />
+                        <input name="departureDetails" placeholder="Notes (optional)" defaultValue={seedTravel?.departureDetails ?? ''} className={inputCls} />
                       )}
                     </div>
                   </div>
