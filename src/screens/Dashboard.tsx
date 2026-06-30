@@ -34,7 +34,7 @@ function GuestDetailPanel({ guest, direction }: { guest: Guest; direction: 'arri
   const details: { label: string; value: string; icon?: React.ReactNode }[] = [];
 
   if (mode) details.push({ label: 'Mode', value: mode, icon: <ModeIcon mode={mode} /> });
-  if (dt) details.push({ label: 'Date & Time', value: new Date(dt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) });
+  if (dt) details.push({ label: 'Date & Time', value: new Date(dt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) });
   if (trainName) details.push({ label: 'Train', value: `${trainName}${trainNum ? ` (${trainNum})` : ''}` });
   if (coach || seat) details.push({ label: 'Coach / Seat', value: [coach, seat].filter(Boolean).join(' / ') });
   if (flightNum) details.push({ label: 'Flight', value: flightNum });
@@ -62,8 +62,8 @@ function GuestDetailPanel({ guest, direction }: { guest: Guest; direction: 'arri
 }
 
 function SearchResultCard({ guest }: { key?: React.Key; guest: Guest }) {
-  const arrDt = guest.arrivalDateTime ? new Date(guest.arrivalDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : null;
-  const depDt = guest.departureDateTime ? new Date(guest.departureDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : null;
+  const arrDt = guest.arrivalDateTime ? new Date(guest.arrivalDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : null;
+  const depDt = guest.departureDateTime ? new Date(guest.departureDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : null;
 
   return (
     <div className="px-4 py-3 space-y-2">
@@ -214,8 +214,8 @@ export default function Dashboard() {
   const handleExportPdf = () => {
     const scheduleRows = filteredItinerary.map((item, i) => [
       String(i + 1),
-      new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-      item.endTime ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      item.endTime ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '—',
       item.title,
       item.venue,
       item.category ?? '',
@@ -224,14 +224,14 @@ export default function Dashboard() {
       String(i + 1),
       g.name,
       g.groupName ?? '',
-      g.arrivalDateTime ? new Date(g.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      g.arrivalDateTime ? new Date(g.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '—',
       g.arrivalMode ?? '',
     ]);
     const departureRows = filteredDepartures.map((g, i) => [
       String(i + 1),
       g.name,
       g.groupName ?? '',
-      g.departureDateTime ? new Date(g.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+      g.departureDateTime ? new Date(g.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '—',
       g.departureMode ?? '',
     ]);
 
@@ -412,10 +412,10 @@ export default function Dashboard() {
                 <div className="p-5 flex flex-col md:flex-row md:items-center gap-4">
                   <div className="min-w-[90px]">
                     <p className="text-base font-black text-primary">
-                      {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </p>
                     <p className="text-[10px] font-bold text-outline uppercase">
-                      {item.endTime ? `to ${new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
+                      {item.endTime ? `to ${new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''}
                     </p>
                   </div>
                   <div className="flex-1">
@@ -486,7 +486,7 @@ export default function Dashboard() {
                             </div>
                             <div className="text-right">
                               <p className={cn('text-xs font-black', timeColor)}>
-                                {dt ? new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                                {dt ? new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
                               </p>
                               {mode && <p className="text-[9px] text-outline uppercase">{mode}</p>}
                             </div>

@@ -41,13 +41,11 @@ function parseSmartDate(s: string) {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
-function parseSmartTime(s: string, period: 'AM' | 'PM') {
+function parseSmartTime(s: string) {
   if (!s) return '12:00';
   const parts = s.split(/[.:]/);
-  let h = parseInt(parts[0], 10);
+  const h = parseInt(parts[0], 10);
   const m = parts[1] ? parseInt(parts[1], 10) : 0;
-  if (period === 'PM' && h < 12) h += 12;
-  if (period === 'AM' && h === 12) h = 0;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -60,14 +58,7 @@ function isoToDateStr(iso: string | undefined) {
 function isoToTimeStr(iso: string | undefined) {
   if (!iso) return '';
   const d = new Date(iso);
-  let h = d.getHours(); const m = d.getMinutes();
-  if (h > 12) h -= 12; else if (h === 0) h = 12;
-  return `${h}.${String(m).padStart(2, '0')}`;
-}
-
-function isoToAmPm(iso: string | undefined): 'AM' | 'PM' {
-  if (!iso) return 'AM';
-  return new Date(iso).getHours() >= 12 ? 'PM' : 'AM';
+  return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function ArrivalIcon({ mode, size = 14 }: { mode: ArrivalMode; size?: number }) {
@@ -209,11 +200,9 @@ export default function GuestList() {
   const [editArrivalMode, setEditArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
   const [editArrivalDateStr, setEditArrivalDateStr] = useState('');
   const [editArrivalTimeStr, setEditArrivalTimeStr] = useState('');
-  const [editArrivalAmPm, setEditArrivalAmPm] = useState<'AM' | 'PM'>('AM');
   const [editDepartureMode, setEditDepartureMode] = useState<ArrivalMode>(ArrivalMode.CAR);
   const [editDepartureDateStr, setEditDepartureDateStr] = useState('');
   const [editDepartureTimeStr, setEditDepartureTimeStr] = useState('');
-  const [editDepartureAmPm, setEditDepartureAmPm] = useState<'AM' | 'PM'>('PM');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -307,10 +296,8 @@ export default function GuestList() {
     setEditDepartureMode(editingGuest.departureMode ?? ArrivalMode.CAR);
     setEditArrivalDateStr(isoToDateStr(editingGuest.arrivalDateTime));
     setEditArrivalTimeStr(isoToTimeStr(editingGuest.arrivalDateTime));
-    setEditArrivalAmPm(isoToAmPm(editingGuest.arrivalDateTime));
     setEditDepartureDateStr(isoToDateStr(editingGuest.departureDateTime));
     setEditDepartureTimeStr(isoToTimeStr(editingGuest.departureDateTime));
-    setEditDepartureAmPm(isoToAmPm(editingGuest.departureDateTime));
     setEditShowTravel(!!editingGuest.arrivalDateTime || !!editingGuest.departureDateTime);
   }, [editingGuest?.id]);
 
@@ -382,7 +369,7 @@ export default function GuestList() {
     // Build travel fields from controlled state + form sub-fields
     const travelFields: Partial<Guest> = {};
     if (editShowTravel && editArrivalDateStr) {
-      travelFields.arrivalDateTime = `${parseSmartDate(editArrivalDateStr)}T${parseSmartTime(editArrivalTimeStr, editArrivalAmPm)}:00`;
+      travelFields.arrivalDateTime = `${parseSmartDate(editArrivalDateStr)}T${parseSmartTime(editArrivalTimeStr)}:00`;
       travelFields.arrivalMode = editArrivalMode;
       if (editArrivalMode === ArrivalMode.TRAIN) {
         travelFields.arrivalTrainName   = (fd.get('arrivalTrainName') as string)   || undefined;
@@ -396,7 +383,7 @@ export default function GuestList() {
       }
     }
     if (editShowTravel && editDepartureDateStr) {
-      travelFields.departureDateTime = `${parseSmartDate(editDepartureDateStr)}T${parseSmartTime(editDepartureTimeStr, editDepartureAmPm)}:00`;
+      travelFields.departureDateTime = `${parseSmartDate(editDepartureDateStr)}T${parseSmartTime(editDepartureTimeStr)}:00`;
       travelFields.departureMode = editDepartureMode;
       if (editDepartureMode === ArrivalMode.TRAIN) {
         travelFields.departureTrainName   = (fd.get('departureTrainName') as string)   || undefined;
@@ -476,7 +463,7 @@ export default function GuestList() {
     if (!dt) return '';
     const mode = isArr ? g.arrivalMode : g.departureMode;
     const date = formatDate(dt);
-    const time = new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const time = new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     let detail = `${date} ${time} · ${mode ?? 'Car'}`;
     if (mode === ArrivalMode.TRAIN) {
       const name = isArr ? g.arrivalTrainName : g.departureTrainName;
@@ -834,7 +821,7 @@ export default function GuestList() {
                                   <ArrivalIcon mode={guest.arrivalMode || ArrivalMode.CAR} size={12} />
                                   <span className="text-xs font-bold text-on-surface">Arr {formatDate(guest.arrivalDateTime)}</span>
                                   <span className="text-[9px] text-outline">
-                                    {new Date(guest.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    {new Date(guest.arrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                   </span>
                                 </div>
                                 {guest.arrivalMode === ArrivalMode.TRAIN && guest.arrivalTrainName && (
@@ -851,7 +838,7 @@ export default function GuestList() {
                                     <ArrivalIcon mode={guest.departureMode || ArrivalMode.CAR} size={12} />
                                     <span className="text-xs font-bold text-on-surface">Dep {formatDate(guest.departureDateTime)}</span>
                                     <span className="text-[9px] text-outline">
-                                      {new Date(guest.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                      {new Date(guest.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                     </span>
                                   </div>
                                 )}
@@ -1073,17 +1060,9 @@ export default function GuestList() {
                             {editArrDateErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editArrDateErr}</p>}
                           </div>
                           <div>
-                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
-                            <div className="flex gap-1">
-                              <input value={editArrivalTimeStr} onChange={e => { setEditArrivalTimeStr(e.target.value); setEditArrTimeErr(null); }} placeholder="10.30"
-                                className={`flex-1 min-w-0 p-2.5 border rounded-lg bg-white text-sm outline-none ${editArrTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
-                              <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
-                                {(['AM', 'PM'] as const).map(p => (
-                                  <button key={p} type="button" onClick={() => setEditArrivalAmPm(p)}
-                                    className={cn('px-2 py-1 rounded-md text-[10px] font-bold transition-all', editArrivalAmPm === p ? 'bg-white shadow text-primary' : 'text-outline')}>{p}</button>
-                                ))}
-                              </div>
-                            </div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time (24hr)</p>
+                            <input value={editArrivalTimeStr} onChange={e => { setEditArrivalTimeStr(e.target.value); setEditArrTimeErr(null); }} placeholder="14:30"
+                              className={`w-full p-2.5 border rounded-lg bg-white text-sm outline-none ${editArrTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
                             {editArrTimeErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editArrTimeErr}</p>}
                           </div>
                         </div>
@@ -1133,17 +1112,9 @@ export default function GuestList() {
                             {editDepDateErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editDepDateErr}</p>}
                           </div>
                           <div>
-                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time</p>
-                            <div className="flex gap-1">
-                              <input value={editDepartureTimeStr} onChange={e => { setEditDepartureTimeStr(e.target.value); setEditDepTimeErr(null); }} placeholder="4.30"
-                                className={`flex-1 min-w-0 p-2.5 border rounded-lg bg-white text-sm outline-none ${editDepTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
-                              <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant shrink-0">
-                                {(['AM', 'PM'] as const).map(p => (
-                                  <button key={p} type="button" onClick={() => setEditDepartureAmPm(p)}
-                                    className={cn('px-2 py-1 rounded-md text-[10px] font-bold transition-all', editDepartureAmPm === p ? 'bg-white shadow text-primary' : 'text-outline')}>{p}</button>
-                                ))}
-                              </div>
-                            </div>
+                            <p className="text-[9px] font-bold text-outline uppercase mb-1">Time (24hr)</p>
+                            <input value={editDepartureTimeStr} onChange={e => { setEditDepartureTimeStr(e.target.value); setEditDepTimeErr(null); }} placeholder="16:30"
+                              className={`w-full p-2.5 border rounded-lg bg-white text-sm outline-none ${editDepTimeErr ? 'border-red-400' : 'border-outline-variant focus:border-secondary'}`} />
                             {editDepTimeErr && <p className="text-[9px] font-bold text-red-600 mt-0.5">{editDepTimeErr}</p>}
                           </div>
                         </div>

@@ -22,7 +22,7 @@ export function exportToPdf(opts: PdfOptions) {
   const { title, subtitle, stats, columns, rows, orientation = 'portrait' } = opts;
   const now = new Date().toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true,
+    hour: '2-digit', minute: '2-digit', hour12: false,
   });
 
   const statsHtml = stats?.length

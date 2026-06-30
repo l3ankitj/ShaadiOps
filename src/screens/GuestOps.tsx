@@ -27,7 +27,7 @@ import { useToast } from '../components/Toast';
 
 function formatDisplayTime(isoString: string | undefined) {
   if (!isoString) return '--:--';
-  try { return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }); }
+  try { return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
   catch { return '--:--'; }
 }
 
@@ -49,13 +49,11 @@ function parseSmartDate(s: string) {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
-function parseSmartTime(s: string, period: 'AM' | 'PM') {
+function parseSmartTime(s: string) {
   if (!s) return '12:00';
   const parts = s.split(/[.:]/);
-  let hours = parseInt(parts[0], 10);
+  const hours = parseInt(parts[0], 10);
   const minutes = parts[1] ? parseInt(parts[1], 10) : 0;
-  if (period === 'PM' && hours < 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
@@ -118,8 +116,6 @@ export default function GuestOps() {
   const [formIsLocal, setFormIsLocal] = useState(false);
   const [formArrivalMode, setFormArrivalMode] = useState<ArrivalMode>(ArrivalMode.CAR);
   const [formDepartureMode, setFormDepartureMode] = useState<ArrivalMode>(ArrivalMode.CAR);
-  const [arrivalAmPm, setArrivalAmPm] = useState<'AM' | 'PM'>('AM');
-  const [departureAmPm, setDepartureAmPm] = useState<'AM' | 'PM'>('AM');
   const [familySideChoice, setFamilySideChoice] = useState<FamilySide>(FamilySide.BRIDE);
   const [arrivalDateStr, setArrivalDateStr] = useState('');
   const [arrivalTimeStr, setArrivalTimeStr] = useState('');
@@ -313,7 +309,7 @@ export default function GuestOps() {
       // Only write arrival travel if an arrival date was actually entered
       if (arrivalDateStr) {
         travelFields.arrivalMode = formArrivalMode;
-        travelFields.arrivalDateTime = `${parseSmartDate(arrivalDateStr)}T${parseSmartTime(arrivalTimeStr, arrivalAmPm)}:00`;
+        travelFields.arrivalDateTime = `${parseSmartDate(arrivalDateStr)}T${parseSmartTime(arrivalTimeStr)}:00`;
         travelFields.travelDetails = (formData.get('arrivalDetails') as string) || undefined;
         travelFields.arrivalTrainName = (formData.get('arrivalTrainName') as string) || undefined;
         travelFields.arrivalTrainNumber = (formData.get('arrivalTrainNumber') as string) || undefined;
@@ -324,7 +320,7 @@ export default function GuestOps() {
       // Only write departure travel if a departure date was actually entered
       if (departureDateStr) {
         travelFields.departureMode = formDepartureMode;
-        travelFields.departureDateTime = `${parseSmartDate(departureDateStr)}T${parseSmartTime(departureTimeStr, departureAmPm)}:00`;
+        travelFields.departureDateTime = `${parseSmartDate(departureDateStr)}T${parseSmartTime(departureTimeStr)}:00`;
         travelFields.departureDetails = (formData.get('departureDetails') as string) || undefined;
         travelFields.departureTrainName = (formData.get('departureTrainName') as string) || undefined;
         travelFields.departureTrainNumber = (formData.get('departureTrainNumber') as string) || undefined;
@@ -892,18 +888,9 @@ export default function GuestOps() {
                             )}
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Time</label>
-                            <div className="flex items-center gap-2">
-                              <input type="text" value={arrivalTimeStr} onChange={e => setArrivalTimeStr(e.target.value)}
-                                className="flex-1 min-w-0 p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="10.15" autoComplete="off" />
-                              <div className="flex bg-surface-container rounded-2xl p-1 border border-outline-variant shrink-0">
-                                {(['AM', 'PM'] as const).map(p => (
-                                  <button key={p} type="button" onClick={() => setArrivalAmPm(p)}
-                                    className={cn('px-3 py-1.5 rounded-xl text-[10px] font-black transition-all',
-                                      arrivalAmPm === p ? 'bg-white shadow-md text-primary' : 'text-outline')}>{p}</button>
-                                ))}
-                              </div>
-                            </div>
+                            <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Time (24hr)</label>
+                            <input type="text" value={arrivalTimeStr} onChange={e => setArrivalTimeStr(e.target.value)}
+                              className="w-full p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="14:30" autoComplete="off" />
                           </div>
                         </div>
                         <div className="p-6 bg-secondary/5 rounded-3xl border border-secondary/10">
@@ -951,18 +938,9 @@ export default function GuestOps() {
                             )}
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Time</label>
-                            <div className="flex items-center gap-2">
-                              <input type="text" value={departureTimeStr} onChange={e => setDepartureTimeStr(e.target.value)}
-                                className="flex-1 min-w-0 p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="4.30" autoComplete="off" />
-                              <div className="flex bg-surface-container rounded-2xl p-1 border border-outline-variant shrink-0">
-                                {(['AM', 'PM'] as const).map(p => (
-                                  <button key={p} type="button" onClick={() => setDepartureAmPm(p)}
-                                    className={cn('px-3 py-1.5 rounded-xl text-[10px] font-black transition-all',
-                                      departureAmPm === p ? 'bg-white shadow-md text-primary' : 'text-outline')}>{p}</button>
-                                ))}
-                              </div>
-                            </div>
+                            <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Time (24hr)</label>
+                            <input type="text" value={departureTimeStr} onChange={e => setDepartureTimeStr(e.target.value)}
+                              className="w-full p-4 border border-outline-variant rounded-2xl bg-surface-container-lowest text-sm focus:border-secondary outline-none font-bold" placeholder="16:30" autoComplete="off" />
                           </div>
                         </div>
                         <div className="p-6 bg-primary/5 rounded-3xl border border-primary/10">

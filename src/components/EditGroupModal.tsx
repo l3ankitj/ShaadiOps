@@ -32,13 +32,11 @@ function parseSmartDate(s: string) {
   if (!month) return `${y}-01-01`;
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
-function parseSmartTime(s: string, period: 'AM' | 'PM') {
+function parseSmartTime(s: string) {
   if (!s) return '12:00';
   const parts = s.split(/[.:]/);
-  let h = parseInt(parts[0], 10);
+  const h = parseInt(parts[0], 10);
   const m = parts[1] ? parseInt(parts[1], 10) : 0;
-  if (period === 'PM' && h < 12) h += 12;
-  if (period === 'AM' && h === 12) h = 0;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -92,10 +90,8 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
   const [depMode, setDepMode]               = useState<ArrivalMode>(ArrivalMode.CAR);
   const [arrDateStr, setArrDateStr]         = useState('');
   const [arrTimeStr, setArrTimeStr]         = useState('');
-  const [arrAmPm, setArrAmPm]               = useState<'AM' | 'PM'>('AM');
   const [depDateStr, setDepDateStr]         = useState('');
   const [depTimeStr, setDepTimeStr]         = useState('');
-  const [depAmPm, setDepAmPm]               = useState<'AM' | 'PM'>('PM');
 
   useEscapeKey(onClose);
 
@@ -152,10 +148,10 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
         existingTravel.customTravel = false;
 
         const arrDT = arrDateStr
-          ? `${parseSmartDate(arrDateStr)}T${parseSmartTime(arrTimeStr, arrAmPm)}:00`
+          ? `${parseSmartDate(arrDateStr)}T${parseSmartTime(arrTimeStr)}:00`
           : undefined;
         const depDT = depDateStr
-          ? `${parseSmartDate(depDateStr)}T${parseSmartTime(depTimeStr, depAmPm)}:00`
+          ? `${parseSmartDate(depDateStr)}T${parseSmartTime(depTimeStr)}:00`
           : undefined;
 
         if (arrDT) {
@@ -450,11 +446,7 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
                         <input value={arrDateStr} onChange={e => setArrDateStr(e.target.value)}
                           placeholder="DD.MM" className={cn(inputCls, 'flex-1')} />
                         <input value={arrTimeStr} onChange={e => setArrTimeStr(e.target.value)}
-                          placeholder="H.MM" className={cn(inputCls, 'w-24')} />
-                        <button type="button" onClick={() => setArrAmPm(p => p === 'AM' ? 'PM' : 'AM')}
-                          className="px-3 py-2 border border-outline-variant rounded-lg text-xs font-bold hover:border-secondary transition-all shrink-0">
-                          {arrAmPm}
-                        </button>
+                          placeholder="14:30" className={cn(inputCls, 'w-24')} />
                       </div>
                       {arrMode === ArrivalMode.TRAIN && (
                         <div className="grid grid-cols-2 gap-2">
@@ -484,11 +476,7 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
                         <input value={depDateStr} onChange={e => setDepDateStr(e.target.value)}
                           placeholder="DD.MM" className={cn(inputCls, 'flex-1')} />
                         <input value={depTimeStr} onChange={e => setDepTimeStr(e.target.value)}
-                          placeholder="H.MM" className={cn(inputCls, 'w-24')} />
-                        <button type="button" onClick={() => setDepAmPm(p => p === 'AM' ? 'PM' : 'AM')}
-                          className="px-3 py-2 border border-outline-variant rounded-lg text-xs font-bold hover:border-secondary transition-all shrink-0">
-                          {depAmPm}
-                        </button>
+                          placeholder="16:30" className={cn(inputCls, 'w-24')} />
                       </div>
                       {depMode === ArrivalMode.TRAIN && (
                         <div className="grid grid-cols-2 gap-2">

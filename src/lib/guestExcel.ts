@@ -46,7 +46,7 @@ const HINTS = [
   'Bride Side  or  Groom Side',
   'Confirmed  /  Declined  /  Pending  (default: Pending)',
   'DD.MM  or  YYYY-MM-DD  e.g. 15.6  (optional — fill later)',
-  '24-hr or 12-hr  e.g. 14:30  or  2:30 PM',
+  '24-hr  e.g. 14:30',
   'Car  /  Train  /  Flight  /  Bus',
   'DD.MM  or  YYYY-MM-DD  e.g. 18.6',
   'e.g. 11:00',
@@ -148,7 +148,7 @@ export function downloadGuestTemplate() {
     ['', '', ''],
     ['✈ TRAVEL DETAILS (all optional at import)', '', ''],
     ['Arrival/Departure Date', '15.6  or  2026-06-15', 'DD.MM  or  YYYY-MM-DD'],
-    ['Arrival/Departure Time', '14:30  or  2:30 PM', '24-hr or 12-hr both accepted'],
+    ['Arrival/Departure Time', '14:30', '24-hr format'],
     ['Arrival/Departure Mode', 'Car', ''],
     ['', 'Train', '→ also fill Train Name, Number, Coach, Seat'],
     ['', 'Flight', '→ also fill Flight Number'],
@@ -390,7 +390,7 @@ function fmtDate(dt: string | undefined): string {
 function fmtTime(dt: string | undefined): string {
   if (!dt) return '';
   try {
-    return new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
   } catch { return ''; }
 }
 
