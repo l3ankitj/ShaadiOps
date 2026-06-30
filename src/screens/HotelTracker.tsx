@@ -708,6 +708,24 @@ export default function HotelTracker() {
                                   {room.status}
                                 </Badge>
                               </div>
+                              {!isReadOnly && room.status === RoomStatus.OCCUPIED && (
+                                <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleEmptyRoom(room); }}
+                                    className="flex-1 flex items-center justify-center gap-1 text-[7px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-1 hover:bg-amber-100 transition-colors"
+                                    title="Unassign guests, keep their data"
+                                  >
+                                    <UserMinus size={9} /> Empty
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleReleaseRoom(room); }}
+                                    className="flex-1 flex items-center justify-center gap-1 text-[7px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 py-1 hover:bg-red-100 transition-colors"
+                                    title="Mark guests as checked out"
+                                  >
+                                    <LogOut size={9} /> Check Out
+                                  </button>
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
