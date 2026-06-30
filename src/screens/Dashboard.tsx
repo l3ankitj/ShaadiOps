@@ -132,9 +132,12 @@ export default function Dashboard() {
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
 
   const shiftDate = (days: number) => {
-    const d = new Date(selectedDate + 'T00:00:00');
+    const d = new Date(selectedDate + 'T12:00:00');
     d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
   };
 
   const toggleGuest = (id: string) =>
