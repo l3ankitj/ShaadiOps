@@ -234,7 +234,7 @@ export default function HotelTracker() {
       hotel: formData.get('hotel') as string,
       floor: formData.get('floor') as string,
       category: formData.get('category') as string,
-      capacity: Number(formData.get('capacity')),
+      capacity: 0,
       status: RoomStatus.EMPTY,
     };
 
@@ -316,7 +316,6 @@ export default function HotelTracker() {
         { header: 'Room #', width: '70px' },
         { header: 'Floor', width: '80px' },
         { header: 'Category', width: '80px' },
-        { header: 'Capacity', width: '60px', align: 'center' },
         { header: 'Status', width: '80px' },
         { header: 'Guests' },
       ],
@@ -330,7 +329,6 @@ export default function HotelTracker() {
             r.number,
             r.floor,
             r.category,
-            String(r.capacity),
             r.status,
             rg.length > 0 ? rg.map(g => g.name).join(', ') : '—',
           ];
@@ -422,7 +420,7 @@ export default function HotelTracker() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-primary truncate">{room.hotel} — Room {room.number}</p>
                           <p className="text-[10px] text-on-surface-variant">
-                            {room.floor} · {room.category} · {room.capacity} pax
+                            {room.floor} · {room.category}
                           </p>
                           {warnings.length > 0 && (
                             <p className="text-[10px] text-amber-700 mt-0.5">⚠ {warnings.join(', ')}</p>
@@ -684,10 +682,6 @@ export default function HotelTracker() {
                                   <Badge variant="default" className="text-[7px] px-1 py-0 bg-surface-container-high border-none uppercase tracking-tighter">
                                     {room.category}
                                   </Badge>
-                                  <div className="flex items-center gap-0.5 text-[8px] font-bold text-on-surface-variant/70">
-                                    <Users size={10} />
-                                    {room.capacity}
-                                  </div>
                                 </div>
 
                                 {roomGuests.length > 0 && (
@@ -781,10 +775,6 @@ export default function HotelTracker() {
                       <option>Standard</option>
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-outline uppercase tracking-widest">Max Occupancy</label>
-                    <input name="capacity" type="number" min="1" defaultValue="2" required className="w-full p-3 border border-outline-variant rounded bg-white text-sm focus:border-secondary transition-all" />
-                  </div>
                 </div>
               </div>
               <div className="p-6 bg-surface-container-low border-t border-outline-variant flex justify-end gap-3">
@@ -805,7 +795,7 @@ export default function HotelTracker() {
               <div>
                 <h3 className="text-lg font-bold text-primary font-display">Room {selectedRoom.number} — {selectedRoom.hotel}</h3>
                 <p className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-0.5">
-                  {selectedRoom.category} · {selectedRoom.floor} · Capacity: {selectedRoom.capacity} PAX
+                  {selectedRoom.category} · {selectedRoom.floor}
                 </p>
               </div>
               <button className="hover:bg-surface-container-high p-2 rounded-full transition-colors" onClick={() => { setSelectedRoom(null); setSelectedGuestIds([]); }}>
@@ -814,19 +804,10 @@ export default function HotelTracker() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Capacity indicator */}
               {selectedGuestIds.length > 0 && (
-                <div className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-bold',
-                  selectedGuestIds.length > selectedRoom.capacity
-                    ? 'bg-amber-50 border-amber-300 text-amber-800'
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                )}>
-                  {selectedGuestIds.length > selectedRoom.capacity
-                    ? <AlertTriangle size={16} />
-                    : <CheckCircle2 size={16} />}
-                  {selectedGuestIds.length} selected / {selectedRoom.capacity} capacity
-                  {selectedGuestIds.length > selectedRoom.capacity && ' — over capacity, but will save'}
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-800 text-sm font-bold">
+                  <CheckCircle2 size={16} />
+                  {selectedGuestIds.length} guest{selectedGuestIds.length !== 1 ? 's' : ''} selected
                 </div>
               )}
 

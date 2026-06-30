@@ -181,16 +181,13 @@ export function parseRoomExcel(file: File): Promise<RoomParseResult> {
           const floor = str(row[col('floor')]);
           if (!floor) warnings.push('Floor is empty');
 
-          const capacityRaw = row[col('capacity')];
-          const capacity = parseInt(String(capacityRaw)) || 2;
-
           const room: Room = {
             id: `R${Date.now()}_${i}`,
             hotel: hotelName,
             number: roomNumber,
             floor: floor || 'Ground Floor',
             category: parseCategory(row[col('category')]),
-            capacity,
+            capacity: 0,
             status: parseRoomStatus(row[col('status')]),
           };
 
