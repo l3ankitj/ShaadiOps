@@ -127,6 +127,7 @@ export default function Dashboard() {
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
   const [globalSearch, setGlobalSearch] = useState('');
+  const dateInputRef = React.useRef<HTMLInputElement>(null);
 
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
 
@@ -287,22 +288,25 @@ export default function Dashboard() {
           >
             <ChevronLeft size={16} className="text-primary" />
           </button>
-          <div className="relative group overflow-hidden">
+          <div>
             <input
+              ref={dateInputRef}
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              title="Select Date"
+              className="sr-only"
             />
-            <div className={cn(
-              'px-6 py-3 rounded-2xl text-xs font-black transition-all border uppercase tracking-widest flex items-center gap-2 bg-white shadow-sm pointer-events-none',
-              isToday ? 'border-secondary text-secondary' : 'border-outline-variant text-primary'
-            )}>
+            <button
+              onClick={() => dateInputRef.current?.showPicker()}
+              className={cn(
+                'px-6 py-3 rounded-2xl text-xs font-black transition-all border uppercase tracking-widest flex items-center gap-2 bg-white shadow-sm cursor-pointer hover:shadow-md',
+                isToday ? 'border-secondary text-secondary' : 'border-outline-variant text-primary'
+              )}
+            >
               <Calendar size={16} />
               {isToday ? 'Today' : new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short' })}
               <ChevronDown size={14} className="opacity-40" />
-            </div>
+            </button>
           </div>
           <button
             onClick={() => shiftDate(1)}
