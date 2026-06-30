@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, Calendar, PlaneLanding, CalendarCheck, Plane, Clock, MapPin, ChevronDown, ChevronUp, Plus, X, FileDown, Search, Train, Car, Bus, BedDouble, Phone, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Users, UserCheck, Calendar, PlaneLanding, CalendarCheck, Plane, Clock, MapPin, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, X, FileDown, Search, Train, Car, Bus, BedDouble, Phone, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { Card, Button, Badge } from '../components/UIComponents';
 import { cn } from '../lib/utils';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
@@ -129,6 +129,12 @@ export default function Dashboard() {
   const [globalSearch, setGlobalSearch] = useState('');
 
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
+  const shiftDate = (days: number) => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
 
   const toggleGuest = (id: string) =>
     setExpandedGuests(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -273,7 +279,14 @@ export default function Dashboard() {
 
       {/* Date selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => shiftDate(-1)}
+            className="p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
+            title="Previous day"
+          >
+            <ChevronLeft size={16} className="text-primary" />
+          </button>
           <div className="relative group overflow-hidden">
             <input
               type="date"
@@ -291,9 +304,16 @@ export default function Dashboard() {
               <ChevronDown size={14} className="opacity-40" />
             </div>
           </div>
+          <button
+            onClick={() => shiftDate(1)}
+            className="p-2.5 rounded-xl border border-outline-variant bg-white hover:bg-primary-container hover:border-primary transition-all shadow-sm"
+            title="Next day"
+          >
+            <ChevronRight size={16} className="text-primary" />
+          </button>
           {!isToday && (
             <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              className="text-[10px] font-black text-outline uppercase tracking-widest hover:text-primary transition-colors">
+              className="text-[10px] font-black text-outline uppercase tracking-widest hover:text-primary transition-colors ml-1">
               Reset to Today
             </button>
           )}
