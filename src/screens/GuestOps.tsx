@@ -534,7 +534,7 @@ export default function GuestOps() {
                   )}
                 >
                   <div className="flex items-center gap-3 p-4" onClick={() => setSelectedGuest(guest)}>
-                    <div className="shrink-0" onClick={e => { e.stopPropagation(); toggleSelect(guest.id); }}>
+                    <div className="shrink-0" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" className="rounded accent-secondary w-4 h-4 cursor-pointer"
                         checked={isSelected} onChange={() => toggleSelect(guest.id)} />
                     </div>
@@ -628,7 +628,7 @@ export default function GuestOps() {
                         selectedIds.has(guest.id) && 'bg-secondary/5')}
                     >
                       {!isReadOnly && (
-                        <td className="pl-5 pr-2 py-4" onClick={e => { e.stopPropagation(); toggleSelect(guest.id); }}>
+                        <td className="pl-5 pr-2 py-4" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" className="rounded accent-secondary cursor-pointer"
                             checked={selectedIds.has(guest.id)} onChange={() => toggleSelect(guest.id)} />
                         </td>
