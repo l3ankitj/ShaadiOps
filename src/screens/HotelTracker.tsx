@@ -337,13 +337,14 @@ export default function HotelTracker() {
     });
   };
 
-  const hotels: string[] = Array.from(new Set(filteredRooms.map(r => r.hotel)));
+  const hotelSet = new Set<string>(filteredRooms.map(r => r.hotel));
+  const hotels: string[] = Array.from(hotelSet).sort();
   const unassignedGuests = guests.filter(g => !g.roomId && g.status !== GuestStatus.CHECKED_OUT);
   const filteredGuests = unassignedGuests.filter(g => {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return g.name.toLowerCase().includes(s) || (g.groupName || '').toLowerCase().includes(s);
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
   const stats = {
     total: filteredRooms.length,
@@ -604,7 +605,7 @@ export default function HotelTracker() {
 
                     {!floorCollapsed && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-                      {hotelRooms.filter(r => r.floor === floor).map((room) => {
+                      {hotelRooms.filter(r => r.floor === floor).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })).map((room) => {
                         const roomGuests = guestsByRoom.get(room.id) || [];
                         return (
                         <div

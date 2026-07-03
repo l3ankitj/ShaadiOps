@@ -80,7 +80,7 @@ export default function VendorSOS() {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return c.name.toLowerCase().includes(s) || c.role.toLowerCase().includes(s);
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
   const initials = (name: string) =>
     name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();

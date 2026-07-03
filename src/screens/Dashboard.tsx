@@ -194,8 +194,10 @@ export default function Dashboard() {
     }
   };
 
-  const filteredArrivals = guests.filter(g => g.arrivalDateTime?.startsWith(selectedDate));
-  const filteredDepartures = guests.filter(g => g.departureDateTime?.startsWith(selectedDate));
+  const filteredArrivals = guests.filter(g => g.arrivalDateTime?.startsWith(selectedDate))
+    .sort((a, b) => (a.arrivalDateTime ?? '').localeCompare(b.arrivalDateTime ?? ''));
+  const filteredDepartures = guests.filter(g => g.departureDateTime?.startsWith(selectedDate))
+    .sort((a, b) => (a.departureDateTime ?? '').localeCompare(b.departureDateTime ?? ''));
   const filteredItinerary = itinerary.filter(item => item.startTime.startsWith(selectedDate));
 
   const searchResults = globalSearch.trim().length >= 2
@@ -206,7 +208,7 @@ export default function Dashboard() {
           || g.groupName?.toLowerCase().includes(q)
           || g.hotelName?.toLowerCase().includes(q)
           || g.roomNumber?.toLowerCase().includes(q);
-      })
+      }).sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
   const dateLabel = isToday ? 'Today' : new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });

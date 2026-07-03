@@ -67,7 +67,7 @@ export default function TransportDesk() {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return v.type.toLowerCase().includes(s) || v.driver.toLowerCase().includes(s) || v.plate.toLowerCase().includes(s) || v.category.toLowerCase().includes(s);
-  });
+  }).sort((a, b) => a.type.localeCompare(b.type) || a.driver.localeCompare(b.driver));
 
   const handleExportPdf = () => {
     exportToPdf({
