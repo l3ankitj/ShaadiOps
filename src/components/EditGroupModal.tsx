@@ -428,7 +428,29 @@ export default function EditGroupModal({ groupName: initialGroupName, onClose }:
 
               {/* ── Bulk Travel ────────────────────────────────────────────── */}
               <div className="space-y-3 border-t border-outline-variant pt-5">
-                <button type="button" onClick={() => setApplyTravel(v => !v)}
+                <button type="button" onClick={() => {
+                  const opening = !applyTravel;
+                  setApplyTravel(opening);
+                  if (opening && !seedTravel) {
+                    const ref = members.find(m => !removedIds.has(m.id) && !m.customTravel && m.arrivalDateTime)
+                      ?? members.find(m => !removedIds.has(m.id) && m.arrivalDateTime);
+                    if (ref) {
+                      setSeedTravel(ref);
+                      setArrMode(ref.arrivalMode ?? ArrivalMode.CAR);
+                      if (ref.arrivalDateTime) {
+                        const ad = new Date(ref.arrivalDateTime);
+                        setArrDateStr(`${String(ad.getDate()).padStart(2, '0')}.${ad.getMonth() + 1}`);
+                        setArrTimeStr(`${String(ad.getHours()).padStart(2, '0')}.${String(ad.getMinutes()).padStart(2, '0')}`);
+                      }
+                      setDepMode(ref.departureMode ?? ArrivalMode.CAR);
+                      if (ref.departureDateTime) {
+                        const dd = new Date(ref.departureDateTime);
+                        setDepDateStr(`${String(dd.getDate()).padStart(2, '0')}.${dd.getMonth() + 1}`);
+                        setDepTimeStr(`${String(dd.getHours()).padStart(2, '0')}.${String(dd.getMinutes()).padStart(2, '0')}`);
+                      }
+                    }
+                  }
+                }}
                   className={cn('w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all',
                     applyTravel ? 'bg-secondary-container border-secondary' : 'border-outline-variant hover:border-secondary')}>
                   <div className="flex items-center gap-2">
