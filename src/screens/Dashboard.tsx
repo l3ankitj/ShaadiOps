@@ -12,6 +12,8 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Guest, GuestStatus, EventConfig, ItineraryItem, ArrivalMode } from '../types';
 import { exportToPdf } from '../lib/exportPdf';
 import { useToast } from '../components/Toast';
+import EditGuestModal from '../components/EditGuestModal';
+import { Pencil } from 'lucide-react';
 
 function ModeIcon({ mode }: { mode?: ArrivalMode }) {
   if (mode === ArrivalMode.TRAIN) return <Train size={13} />;
@@ -61,7 +63,7 @@ function GuestDetailPanel({ guest, direction }: { guest: Guest; direction: 'arri
   );
 }
 
-function SearchResultCard({ guest }: { key?: React.Key; guest: Guest }) {
+function SearchResultCard({ guest, onEdit }: { key?: React.Key; guest: Guest; onEdit: () => void }) {
   const arrDt = guest.arrivalDateTime ? new Date(guest.arrivalDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : null;
   const depDt = guest.departureDateTime ? new Date(guest.departureDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : null;
 
@@ -76,9 +78,18 @@ function SearchResultCard({ guest }: { key?: React.Key; guest: Guest }) {
             <Badge variant={guest.inviteStatus === 'Confirmed' ? 'success' : 'default'} className="text-[7px] px-1.5 py-0 uppercase">{guest.inviteStatus}</Badge>
           </div>
         </div>
-        {guest.phone && (
-          <span className="text-[10px] text-outline flex items-center gap-1"><Phone size={10} /> {guest.phone}</span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {guest.phone && (
+            <span className="text-[10px] text-outline flex items-center gap-1"><Phone size={10} /> {guest.phone}</span>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="p-1.5 text-outline hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+            title="Edit guest"
+          >
+            <Pencil size={13} />
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-emerald-50/80 rounded-lg p-2">
@@ -127,6 +138,7 @@ export default function Dashboard() {
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
   const [globalSearch, setGlobalSearch] = useState('');
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const dateInputRef = React.useRef<HTMLInputElement>(null);
 
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
@@ -364,7 +376,7 @@ export default function Dashboard() {
               <p className="text-[10px] font-black text-secondary uppercase tracking-widest">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="divide-y divide-outline-variant/30">
-              {searchResults.map(g => <SearchResultCard key={g.id} guest={g} />)}
+              {searchResults.map(g => <SearchResultCard key={g.id} guest={g} onEdit={() => setEditingGuest(g)} />)}
             </div>
           </Card>
         )}
@@ -595,6 +607,8 @@ export default function Dashboard() {
           </Card>
         </div>
       )}
+
+      {editingGuest && <EditGuestModal guest={editingGuest} onClose={() => setEditingGuest(null)} />}
     </div>
   );
 }
